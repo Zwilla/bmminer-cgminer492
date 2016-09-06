@@ -574,7 +574,9 @@ static void sharelog(const char*disposition, const struct work*work)
     free(hash);
     free(data);
     if (rv >= (int)(sizeof(s)))
+    {
         s[sizeof(s) - 1] = '\0';
+    }
     else if (rv < 0)
     {
         applog(LOG_ERR, "sharelog printf error");
@@ -587,7 +589,9 @@ static void sharelog(const char*disposition, const struct work*work)
     mutex_unlock(&sharelog_lock);
 
     if (ret != 1)
+    {
         applog(LOG_ERR, "sharelog fwrite error");
+    }
 }
 
 static char *getwork_req = "{\"method\": \"getwork\", \"params\": [], \"id\":0}\n";
@@ -595,6 +599,7 @@ static char *getwork_req = "{\"method\": \"getwork\", \"params\": [], \"id\":0}\
 static char *gbt_req = "{\"id\": 0, \"method\": \"getblocktemplate\", \"params\": [{\"capabilities\": [\"coinbasetxn\", \"workid\", \"coinbase/append\"]}]}\n";
 
 static char *gbt_solo_req = "{\"id\": 0, \"method\": \"getblocktemplate\"}\n";
+
 
 /* Adjust all the pools' quota to the greatest common denominator after a pool
  * has been added or the quotas changed. */
@@ -628,7 +633,9 @@ void adjust_quota_gcd(void)
         }
     }
     else
+    {
         gcd = 1;
+    }
 
     for (i = 0; i < total_pools; i++)
     {
@@ -642,23 +649,33 @@ void adjust_quota_gcd(void)
     applog(LOG_DEBUG, "Global quota greatest common denominator set to %lu", gcd);
 }
 
+
 /* Return value is ignored if not called from add_pool_details */
 struct pool *add_pool(void)
 {
     struct pool *pool;
 
     pool = cgcalloc(sizeof(struct pool), 1);
+
 #ifdef USE_BITMAIN_C5
-    pool->support_vil = false;
+    pool->support_vil = false; // why does S9 not support vil mode?
 #endif
+
     if (!pool)
+    {
         quit(1, "Failed to malloc pool in add_pool");
+    }
+
     pool->pool_no = pool->prio = total_pools;
     pools = cgrealloc(pools, sizeof(struct pool *) * (total_pools + 2));
     pools[total_pools++] = pool;
     mutex_init(&pool->pool_lock);
+
     if (unlikely(pthread_cond_init(&pool->cr_cond, NULL)))
+    {
         quit(1, "Failed to pthread_cond_init in add_pool");
+    }
+
     cglock_init(&pool->data_lock);
     mutex_init(&pool->stratum_lock);
     cglock_init(&pool->gbt_lock);
@@ -676,6 +693,7 @@ struct pool *add_pool(void)
     return pool;
 }
 
+
 /* Pool variant of test and set */
 static bool pool_tset(struct pool *pool, bool *var)
 {
@@ -689,6 +707,7 @@ static bool pool_tset(struct pool *pool, bool *var)
     return ret;
 }
 
+
 bool pool_tclear(struct pool *pool, bool *var)
 {
     bool ret;
@@ -701,6 +720,7 @@ bool pool_tclear(struct pool *pool, bool *var)
     return ret;
 }
 
+
 struct pool *current_pool(void)
 {
     struct pool *pool;
@@ -712,18 +732,24 @@ struct pool *current_pool(void)
     return pool;
 }
 
+
 char *set_int_range(const char *arg, int *i, int min, int max)
 {
     char *err = opt_set_intval(arg, i);
 
     if (err)
+    {
         return err;
+    }
 
     if (*i < min || *i > max)
+    {
         return "Value out of range";
+    }
 
     return NULL;
 }
+
 
 static char *set_int_0_to_9999(const char *arg, int *i)
 {
