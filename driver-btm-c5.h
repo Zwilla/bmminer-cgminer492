@@ -99,7 +99,8 @@
 //other ASIC macro define
 #define MAX_BAUD_DIVIDER		26
 #define DEFAULT_BAUD_DIVIDER	26
-#define BM1387_CORE_NUM			114
+#define BM1387_CORE_NUM			114 // only 114 cores
+#define BM1385_CORE_NUM			50 // only 114 cores
 #define VIL_COMMAND_TYPE		(0x02 << 5)
 #define VIL_ALL					(0x01 << 4)
 #define PAT						(0x01 << 7)
@@ -161,10 +162,11 @@
 
 //other FPGA macro define
 #define TOTAL_LEN						0x160
-#define FPGA_MEM_TOTAL_LEN				(16*1024*1024)	// 16M bytes
+#define FPGA_MEM_TOTAL_LEN				(32*1024*1024)	// (default: 16M bytes) we give 32
 #define HARDWARE_VERSION_VALUE			0xC501
 #define NONCE2_AND_JOBID_STORE_SPACE	(4*1024*1024)	// 2M bytes (default: 2) we give now 4
 #define NONCE2_AND_JOBID_STORE_SPACE_ORDER	18			// (default:9 for 2M bytes space) Set to: 18 for 4M bytes space
+
 #define JOB_STORE_SPACE					(1 << 16)		// for 64K bytes space
 #define JOB_START_SPACE					(1024*8)		// 8K bytes
 #define JOB_START_ADDRESS_ALIGN			32				// JOB_START_ADDRESS need 32 bytes aligned
@@ -222,14 +224,16 @@
 #ifdef C5
 #define RED_LED_DEV "/sys/class/leds/hps_led2/brightness"
 #define GREEN_LED_DEV "/sys/class/leds/hps_led0/brightness"
-#else ifdef XILINX
+#else
+#ifdef XILINX
 #define RED_LED_DEV "/sys/class/gpio/gpio37/value"
 #define GREEN_LED_DEV "/sys/class/gpio/gpio38/value"
 #endif
 
 
 
-struct init_config {
+struct init_config
+{
     uint8_t 	token_type;
     uint8_t 	version;
     uint16_t	length;
@@ -266,7 +270,8 @@ struct init_config {
 
 
 
-struct bitmain_c5_info {
+struct bitmain_c5_info
+{
     cglock_t update_lock;
 
     uint8_t		data_type;
@@ -306,7 +311,9 @@ struct bitmain_c5_info {
     uint16_t	crc;
 } __attribute__((packed, aligned(4)));
 
-struct part_of_job {
+
+struct part_of_job
+{
     uint8_t		token_type;				// buf[0]
     uint8_t		version;
     uint16_t	reserved;
@@ -332,7 +339,9 @@ struct part_of_job {
 //uint8_t	merkle_bin[32] * merkles_num
 //uint16_t	crc
 
-struct nonce_content {
+
+struct nonce_content
+{
     uint32_t	job_id;
     uint32_t	work_id;
     uint32_t	header_version;
@@ -342,7 +351,9 @@ struct nonce_content {
     uint8_t		midstate[MIDSTATE_LEN];
 } __attribute__((packed, aligned(4)));
 
-struct nonce {
+
+struct nonce
+{
     uint8_t		token_type;
     uint8_t		version;
     uint16_t	length;
@@ -351,7 +362,9 @@ struct nonce {
     uint16_t	crc;
 } __attribute__((packed, aligned(4)));
 
-struct all_parameters {
+
+struct all_parameters
+{
 
     unsigned int	*current_job_start_address;
     unsigned int	pwm_value;
@@ -395,25 +408,32 @@ struct all_parameters {
     unsigned short int	freq[BITMAIN_MAX_CHAIN_NUM];
 } __attribute__((packed, aligned(4)));
 
-volatile struct nonce_buf {
+
+volatile struct nonce_buf
+{
     unsigned int p_wr;
     unsigned int p_rd;
     unsigned int nonce_num;
     struct nonce_content nonce_buffer[MAX_NONCE_NUMBER_IN_FIFO];
 }__attribute__((packed, aligned(4)));
 
-struct reg_content {
+
+struct reg_content
+{
     unsigned int reg_value;
     unsigned char crc;
     unsigned char chain_number;
 } __attribute__((packed, aligned(4)));
 
-volatile struct reg_buf {
+
+volatile struct reg_buf
+{
     unsigned int p_wr;
     unsigned int p_rd;
     unsigned int reg_value_num;
     struct reg_content reg_buffer[MAX_NONCE_NUMBER_IN_FIFO];
 }__attribute__((packed, aligned(4)));
+
 
 struct freq_pll
 {
@@ -422,6 +442,7 @@ struct freq_pll
     unsigned int fildiv2;
     unsigned int vilpll;
 };
+
 
 #define Swap32(l) (((l) >> 24) | (((l) & 0x00ff0000) >> 8) | (((l) & 0x0000ff00) << 8) | ((l) << 24))
 

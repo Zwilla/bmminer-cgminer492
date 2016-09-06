@@ -57,15 +57,14 @@
 
 // BOOL
 bool opt_bitmain_new_cmd_type_vil = false;
-bool status_error = false;
-bool once_error = false;
-bool iic_ok = false;
-bool opt_bitmain_fan_ctrl = false;
-bool gBegin_get_nonce = false;
-bool update_temp =false;
-bool stop_mining = false;
-
-static bool need_send = true;
+bool status_error                 = false;
+bool once_error                   = false;
+bool iic_ok                       = false;
+bool opt_bitmain_fan_ctrl         = false;
+bool gBegin_get_nonce             = false;
+bool update_temp                  = false;
+bool stop_mining                  = false;
+static bool need_send             = false;    // (default: true) set to fales, because we do not want to send miner datas to bitmain, nor our blocks
 
 // CHAR
 char displayed_rate[BITMAIN_MAX_CHAIN_NUM][16];
@@ -78,25 +77,27 @@ int fd;                                         // axi fpga
 int fd_fpga_mem;                                // fpga memory
 int fpga_version;
 int pcb_version;
-int last_temperature = 0;
-int temp_highest = 0;
-int opt_bitmain_fan_pwm = 0;
-int opt_bitmain_c5_freq = 600;
-int opt_bitmain_c5_voltage = 176;
-int ADD_FREQ = 0;
-int ADD_FREQ1 = 0;
-int check_iic = 0;
+
+int last_temperature                  = 0;
+int temp_highest                      = 0;
+int opt_bitmain_fan_pwm               = 0;
+int opt_bitmain_c5_freq               = 600;
+int opt_bitmain_c5_voltage            = 176;
+int ADD_FREQ                          = 0;
+int ADD_FREQ1                         = 0;
+int check_iic                         = 0;
 int rate_error[BITMAIN_MAX_CHAIN_NUM] = {0};
 
-unsigned int is_first_job = 0;
-unsigned int *axi_fpga_addr = NULL;             // axi address
-unsigned int *fpga_mem_addr = NULL;             // fpga memory address
-unsigned int *nonce2_jobid_address = NULL;      // the value should be filled in NONCE2_AND_JOBID_STORE_ADDRESS
-unsigned int *job_start_address_1 = NULL;       // the value should be filled in JOB_START_ADDRESS
-unsigned int *job_start_address_2 = NULL;       // the value should be filled in JOB_START_ADDRESS
 
-uint8_t de_voltage = 176;
+unsigned int is_first_job                    = 0;
+unsigned int *axi_fpga_addr                  = NULL;       // axi address
+unsigned int *fpga_mem_addr                  = NULL;       // fpga memory address
+unsigned int *nonce2_jobid_address           = NULL;       // the value should be filled in NONCE2_AND_JOBID_STORE_ADDRESS
+unsigned int *job_start_address_1            = NULL;       // the value should be filled in JOB_START_ADDRESS
+unsigned int *job_start_address_2            = NULL;       // the value should be filled in JOB_START_ADDRESS
+uint8_t de_voltage                           = 176;
 uint8_t chain_voltage[BITMAIN_MAX_CHAIN_NUM] = {0};
+
 
 // --------------------------------------------------------------
 //      CRC16 check table
@@ -127,6 +128,7 @@ const uint8_t chCRCHTalbe[] =                                 // CRC high byte t
                 0x00, 0xC1, 0x81, 0x40
         };
 
+
 const uint8_t chCRCLTalbe[] =                                 // CRC low byte table
         {
                 0x00, 0xC0, 0xC1, 0x01, 0xC3, 0x03, 0x02, 0xC2, 0xC6, 0x06, 0x07, 0xC7,
@@ -156,13 +158,12 @@ const uint8_t chCRCLTalbe[] =                                 // CRC low byte ta
 
 //crc
 
-uint32_t given_id = 2;
-uint32_t c_coinbase_padding = 0;
-uint32_t c_merkles_num = 0;
-uint32_t l_coinbase_padding = 0;
-uint32_t l_merkles_num = 0;
-
-uint64_t h = 0;
+uint32_t given_id                    = 2;
+uint32_t c_coinbase_padding          = 0;
+uint32_t c_merkles_num               = 0;
+uint32_t l_coinbase_padding          = 0;
+uint32_t l_merkles_num               = 0;
+uint64_t h                           = 0;
 uint64_t rate[BITMAIN_MAX_CHAIN_NUM] = {0};
 
 
@@ -170,10 +171,10 @@ uint64_t rate[BITMAIN_MAX_CHAIN_NUM] = {0};
 void *gpio0_vaddr=NULL;
 
 // pthread_mutex_t
-pthread_mutex_t reg_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t nonce_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t reg_mutex      = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t nonce_mutex    = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t reg_read_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t iic_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t iic_mutex      = PTHREAD_MUTEX_INITIALIZER;
 
 // Struct
 struct thr_info *read_nonce_reg_id;                 // thread id for read nonce and register
@@ -206,17 +207,19 @@ uint16_t CRC16(const uint8_t* p_data, uint16_t w_len)
     return ((chCRCHi << 8) | chCRCLo);
 }
 
+
 unsigned char CRC5(unsigned char *ptr, unsigned char len)
 {
     unsigned char i, j, k;
     unsigned char crc = 0x1f;
 
-    unsigned char crcin[5] = {1, 1, 1, 1, 1};
+    unsigned char crcin[5]  = {1, 1, 1, 1, 1};
     unsigned char crcout[5] = {1, 1, 1, 1, 1};
-    unsigned char din = 0;
+    unsigned char din       = 0;
 
     j = 0x80;
     k = 0;
+
     for (i = 0; i < len; i++)
     {
         if (*ptr & j)
@@ -235,37 +238,47 @@ unsigned char CRC5(unsigned char *ptr, unsigned char len)
 
         j = j >> 1;
         k++;
+        
         if (k == 8)
         {
             j = 0x80;
             k = 0;
             ptr++;
         }
+        
         memcpy(crcin, crcout, 5);
     }
+    
     crc = 0;
+
     if(crcin[4])
     {
         crc |= 0x10;
     }
+    
     if(crcin[3])
     {
         crc |= 0x08;
     }
+    
     if(crcin[2])
     {
         crc |= 0x04;
     }
+    
     if(crcin[1])
     {
         crc |= 0x02;
     }
+    
     if(crcin[0])
     {
         crc |= 0x01;
     }
+    
     return crc;
 }
+
 
 // pic
 unsigned int get_pic_iic()
@@ -273,9 +286,10 @@ unsigned int get_pic_iic()
     int ret = -1;
     ret = *(axi_fpga_addr + IIC_COMMAND);
 
-    applog(LOG_DEBUG,"%s: IIC_COMMAND is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: IIC_COMMAND is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
+
 
 unsigned char set_pic_iic(unsigned int data)
 {
@@ -283,7 +297,7 @@ unsigned char set_pic_iic(unsigned int data)
     unsigned char ret_data = 0;
 
     *((unsigned int *)(axi_fpga_addr + IIC_COMMAND)) = data & 0x7fffffff;
-    applog(LOG_DEBUG,"%s: set IIC_COMMAND is 0x%x\n", __FUNCTION__, data & 0x7fffffff);
+    // applog(LOG_DEBUG,"%s: set IIC_COMMAND is 0x%x\n", __FUNCTION__, data & 0x7fffffff);
 
     while(1)
     {
@@ -295,16 +309,17 @@ unsigned char set_pic_iic(unsigned int data)
         }
         else
         {
-            applog(LOG_DEBUG,"%s: waiting write pic iic\n", __FUNCTION__);
+            // applog(LOG_DEBUG,"%s: waiting write pic iic\n", __FUNCTION__);
             cgsleep_us(1000);
         }
     }
 }
 
+
 unsigned char write_pic_iic(bool read, bool reg_addr_valid, unsigned char reg_addr, unsigned char chain, unsigned char data)
 {
     unsigned int value = 0x00000000;
-    unsigned char ret = 0;
+    unsigned char ret  = 0;
 
     if(read)
     {
@@ -328,6 +343,7 @@ unsigned char write_pic_iic(bool read, bool reg_addr_valid, unsigned char reg_ad
     return ret;
 }
 
+
 void send_pic_command(unsigned char chain)
 {
     write_pic_iic(false, false, 0x0, chain, PIC_COMMAND_1);
@@ -343,6 +359,7 @@ void set_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char addr_H, u
     write_pic_iic(false, false, 0x0, chain, addr_L);
 }
 
+
 void send_data_to_pic_iic(unsigned char chain, unsigned char command, unsigned char *buf, unsigned char length)
 {
     unsigned char i=0;
@@ -353,6 +370,7 @@ void send_data_to_pic_iic(unsigned char chain, unsigned char command, unsigned c
         write_pic_iic(false, false, 0x0, chain, *(buf + i));
     }
 }
+
 
 void get_data_from_pic_iic(unsigned char chain, unsigned char command, unsigned char *buf, unsigned char length)
 {
@@ -365,17 +383,20 @@ void get_data_from_pic_iic(unsigned char chain, unsigned char command, unsigned 
     }
 }
 
+
 void send_data_to_pic_flash(unsigned char chain, unsigned char *buf)
 {
     send_pic_command(chain);
     send_data_to_pic_iic(chain, SEND_DATA_TO_IIC, buf, 16);
 }
 
+
 void get_data_from_pic_flash(unsigned char chain, unsigned char *buf)
 {
     send_pic_command(chain);
     get_data_from_pic_iic(chain, READ_DATA_FROM_IIC, buf, 16);
 }
+
 
 unsigned char erase_pic_flash(unsigned char chain)
 {
@@ -387,6 +408,7 @@ unsigned char erase_pic_flash(unsigned char chain)
     {
         cgsleep_us(3000);
         ret = write_pic_iic(true, false, 0x0, chain, 0);
+        
         if(ret == 0x0)
         {
             return ret;
@@ -394,23 +416,28 @@ unsigned char erase_pic_flash(unsigned char chain)
     }
 }
 
+
 unsigned char erase_pic_flash_all(unsigned char chain)
 {
-    unsigned char ret=0xff;
-    unsigned int i=0, erase_loop = 0;
-    unsigned char start_addr_h = PIC_FLASH_POINTER_START_ADDRESS_H, start_addr_l = PIC_FLASH_POINTER_START_ADDRESS_L;
-    unsigned char end_addr_h = PIC_FLASH_POINTER_END_ADDRESS_H, end_addr_l = PIC_FLASH_POINTER_END_ADDRESS_L;
-    unsigned int pic_flash_length=0;
+    unsigned char ret = 0xff;
+    unsigned int i    = 0;
+    int erase_loop    = 0;
+
+    unsigned char start_addr_h    = PIC_FLASH_POINTER_START_ADDRESS_H, start_addr_l = PIC_FLASH_POINTER_START_ADDRESS_L;
+    unsigned char end_addr_h      = PIC_FLASH_POINTER_END_ADDRESS_H, end_addr_l     = PIC_FLASH_POINTER_END_ADDRESS_L;
+    unsigned int pic_flash_length = 0;
 
     set_pic_iic_flash_addr_pointer(chain, PIC_FLASH_POINTER_START_ADDRESS_H, PIC_FLASH_POINTER_START_ADDRESS_L);
 
     pic_flash_length = (((unsigned int)end_addr_h << 8) + end_addr_l) - (((unsigned int)start_addr_h << 8) + start_addr_l) + 1;
     erase_loop = pic_flash_length/PIC_FLASH_SECTOR_LENGTH;
+
     for(i=0; i<erase_loop; i++)
     {
         erase_pic_flash(chain);
     }
 }
+
 
 void set_temperature_offset_value(unsigned char chain, unsigned char *value)
 {
@@ -419,11 +446,13 @@ void set_temperature_offset_value(unsigned char chain, unsigned char *value)
     cgsleep_ms(100000);
 }
 
+
 void get_temperature_offset_value(unsigned char chain, unsigned char *value)
 {
     send_pic_command(chain);
     get_data_from_pic_iic(chain, RD_TEMP_OFFSET_VALUE, value, 8);
 }
+
 
 unsigned char write_data_into_pic_flash(unsigned char chain)
 {
@@ -442,6 +471,7 @@ unsigned char write_data_into_pic_flash(unsigned char chain)
     }
 }
 
+
 unsigned char jump_to_app_from_loader(unsigned char chain)
 {
     unsigned char ret=0xff;
@@ -450,6 +480,7 @@ unsigned char jump_to_app_from_loader(unsigned char chain)
     write_pic_iic(false, false, 0x0, chain, JUMP_FROM_LOADER_TO_APP);
     cgsleep_us(100000);
 }
+
 
 unsigned char reset_iic_pic(unsigned char chain)
 {
@@ -460,6 +491,7 @@ unsigned char reset_iic_pic(unsigned char chain)
     cgsleep_us(100000);
 }
 
+
 void get_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char *addr_H, unsigned char *addr_L)
 {
     send_pic_command(chain);
@@ -467,6 +499,7 @@ void get_pic_iic_flash_addr_pointer(unsigned char chain, unsigned char *addr_H, 
     *addr_H = write_pic_iic(true, false, 0x0, chain, 0);
     *addr_L = write_pic_iic(true, false, 0x0, chain, 0);
 }
+
 
 void set_pic_voltage(unsigned char chain, unsigned char voltage)
 {
@@ -476,6 +509,7 @@ void set_pic_voltage(unsigned char chain, unsigned char voltage)
     write_pic_iic(false, false, 0x0, chain, voltage);
     cgsleep_us(100000);
 }
+
 
 unsigned char get_pic_voltage(unsigned char chain)
 {
@@ -495,6 +529,7 @@ void set_voltage_setting_time(unsigned char chain, unsigned char *time)
     cgsleep_us(100000);
 }
 
+
 void set_hash_board_id_number(unsigned char chain, unsigned char *id)
 {
     send_pic_command(chain);
@@ -502,11 +537,13 @@ void set_hash_board_id_number(unsigned char chain, unsigned char *id)
     cgsleep_us(100000);
 }
 
+
 void get_hash_board_id_number(unsigned char chain, unsigned char *id)
 {
     send_pic_command(chain);
     get_data_from_pic_iic(chain, GET_HASH_BOARD_ID, id, 12);
 }
+
 
 void write_host_MAC_and_time(unsigned char chain, unsigned char *buf)
 {
@@ -515,12 +552,14 @@ void write_host_MAC_and_time(unsigned char chain, unsigned char *buf)
     cgsleep_us(100000);
 }
 
+
 void enable_pic_dc_dc(unsigned char chain)
 {
     send_pic_command(chain);
     write_pic_iic(false, false, 0x0, chain, ENABLE_VOLTAGE);
     write_pic_iic(false, false, 0x0, chain, 1);
 }
+
 
 void enable_pic_dc_dc_all()
 {
@@ -534,6 +573,7 @@ void enable_pic_dc_dc_all()
         }
     }
 }
+
 
 void set_pic_voltage_all(int voltage)
 {
@@ -551,12 +591,14 @@ void set_pic_voltage_all(int voltage)
     }
 }
 
+
 void enable_pic_dac(unsigned char chain)
 {
     send_pic_command(chain);
     write_pic_iic(false, false, 0x0, chain, ENABLE_VOLTAGE);
     write_pic_iic(false, false, 0x0, chain, 1);
 }
+
 
 void disable_pic_dac(unsigned char chain)
 {
@@ -572,49 +614,54 @@ void pic_heart_beat_each_chain(unsigned char chain)
     write_pic_iic(false, false, 0x0, chain, SEND_HEART_BEAT);
 }
 
+
 //FPGA related
 int get_nonce2_and_job_id_store_address(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + NONCE2_AND_JOBID_STORE_ADDRESS));
-    applog(LOG_DEBUG,"%s: NONCE2_AND_JOBID_STORE_ADDRESS is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: NONCE2_AND_JOBID_STORE_ADDRESS is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
+
 
 void set_nonce2_and_job_id_store_address(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + NONCE2_AND_JOBID_STORE_ADDRESS)) = value;
-    applog(LOG_DEBUG,"%s: set NONCE2_AND_JOBID_STORE_ADDRESS is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set NONCE2_AND_JOBID_STORE_ADDRESS is 0x%x\n", __FUNCTION__, value);
     get_nonce2_and_job_id_store_address();
 }
+
 
 int get_job_start_address(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + JOB_START_ADDRESS));
-    applog(LOG_DEBUG,"%s: JOB_START_ADDRESS is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: JOB_START_ADDRESS is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
+
 
 void set_job_start_address(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + JOB_START_ADDRESS)) = value;
-    applog(LOG_DEBUG,"%s: set JOB_START_ADDRESS is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set JOB_START_ADDRESS is 0x%x\n", __FUNCTION__, value);
     get_job_start_address();
 }
+
 
 int get_QN_write_data_command(void)
 {
     int ret = -1;
     ret = *((axi_fpga_addr + QN_WRITE_DATA_COMMAND));
-    applog(LOG_DEBUG,"%s: QN_WRITE_DATA_COMMAND is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: QN_WRITE_DATA_COMMAND is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_QN_write_data_command(unsigned int value)
 {
     *(axi_fpga_addr + QN_WRITE_DATA_COMMAND) = value;
-    applog(LOG_DEBUG,"%s: set QN_WRITE_DATA_COMMAND is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set QN_WRITE_DATA_COMMAND is 0x%x\n", __FUNCTION__, value);
     get_QN_write_data_command();
 }
 
@@ -624,85 +671,94 @@ int bitmain_axi_init()
     int ret=0;
 
     fd = open("/dev/axi_fpga_dev", O_RDWR);
+
     if(fd < 0)
     {
-        applog(LOG_DEBUG,"/dev/axi_fpga_dev open failed. fd = %d\n", fd);
+        // applog(LOG_DEBUG,"/dev/axi_fpga_dev open failed. fd = %d\n", fd);
         perror("open");
         return -1;
     }
 
     axi_fpga_addr = mmap(NULL, TOTAL_LEN, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+
     if(!axi_fpga_addr)
     {
-        applog(LOG_DEBUG,"mmap axi_fpga_addr failed. axi_fpga_addr = 0x%x\n", axi_fpga_addr);
+        // applog(LOG_DEBUG,"mmap axi_fpga_addr failed. axi_fpga_addr = 0x%x\n", axi_fpga_addr);
         return -1;
     }
-    applog(LOG_DEBUG,"mmap axi_fpga_addr = 0x%x\n", axi_fpga_addr);
+    // applog(LOG_DEBUG,"mmap axi_fpga_addr = 0x%x\n", axi_fpga_addr);
 
     //check the value in address 0xff200000
     data = *axi_fpga_addr;
+
     if((data & 0x0000FFFF) != HARDWARE_VERSION_VALUE)
     {
-        applog(LOG_DEBUG,"data = 0x%x, and it's not equal to HARDWARE_VERSION_VALUE : 0x%x\n", data, HARDWARE_VERSION_VALUE);
+        // applog(LOG_DEBUG,"data = 0x%x, and it's not equal to HARDWARE_VERSION_VALUE : 0x%x\n", data, HARDWARE_VERSION_VALUE);
         //return -1;
     }
-    applog(LOG_DEBUG,"axi_fpga_addr data = 0x%x\n", data);
+    // applog(LOG_DEBUG,"axi_fpga_addr data = 0x%x\n", data);
 
     fd_fpga_mem = open("/dev/fpga_mem", O_RDWR);
+
     if(fd_fpga_mem < 0)
     {
-        applog(LOG_DEBUG,"/dev/fpga_mem open failed. fd_fpga_mem = %d\n", fd_fpga_mem);
+        // applog(LOG_DEBUG,"/dev/fpga_mem open failed. fd_fpga_mem = %d\n", fd_fpga_mem);
         perror("open");
         return -1;
     }
 
     fpga_mem_addr = mmap(NULL, FPGA_MEM_TOTAL_LEN, PROT_READ|PROT_WRITE, MAP_SHARED, fd_fpga_mem, 0);
+
     if(!fpga_mem_addr)
     {
-        applog(LOG_DEBUG,"mmap fpga_mem_addr failed. fpga_mem_addr = 0x%x\n", fpga_mem_addr);
+        // applog(LOG_DEBUG,"mmap fpga_mem_addr failed. fpga_mem_addr = 0x%x\n", fpga_mem_addr);
         return -1;
     }
-    applog(LOG_DEBUG,"mmap fpga_mem_addr = 0x%x\n", fpga_mem_addr);
+    // applog(LOG_DEBUG,"mmap fpga_mem_addr = 0x%x\n", fpga_mem_addr);
 
     nonce2_jobid_address = fpga_mem_addr;
     job_start_address_1  = fpga_mem_addr + NONCE2_AND_JOBID_STORE_SPACE/sizeof(int);
     job_start_address_2  = fpga_mem_addr + (NONCE2_AND_JOBID_STORE_SPACE + JOB_STORE_SPACE)/sizeof(int);
 
-    applog(LOG_DEBUG,"job_start_address_1 = 0x%x\n", job_start_address_1);
-    applog(LOG_DEBUG,"job_start_address_2 = 0x%x\n", job_start_address_2);
+    // applog(LOG_DEBUG,"job_start_address_1 = 0x%x\n", job_start_address_1);
+    // applog(LOG_DEBUG,"job_start_address_2 = 0x%x\n", job_start_address_2);
 
     set_nonce2_and_job_id_store_address(PHY_MEM_NONCE2_JOBID_ADDRESS);
     set_job_start_address(PHY_MEM_JOB_START_ADDRESS_1);
 
 
     dev = calloc(sizeof(struct all_parameters), sizeof(char));
+
     if(!dev)
     {
-        applog(LOG_DEBUG,"kmalloc for dev failed.\n");
+        // applog(LOG_DEBUG,"kmalloc for dev failed.\n");
         return -1;
     }
     else
     {
         dev->current_job_start_address = job_start_address_1;
-        applog(LOG_DEBUG,"kmalloc for dev success.\n");
+        // applog(LOG_DEBUG,"kmalloc for dev success.\n");
     }
     return ret;
 }
+
 
 int bitmain_axi_close()
 {
     int ret = 0;
 
     ret = munmap((void *)axi_fpga_addr, TOTAL_LEN);
+
     if(ret<0)
     {
-        applog(LOG_DEBUG,"munmap failed!\n");
+        // applog(LOG_DEBUG,"munmap failed!\n");
     }
 
     ret = munmap((void *)fpga_mem_addr, FPGA_MEM_TOTAL_LEN);
+
     if(ret<0)
     {
-        applog(LOG_DEBUG,"munmap failed!\n");
+        // applog(LOG_DEBUG,"munmap failed!\n");
     }
 
     //free_pages((unsigned long)nonce2_jobid_address, NONCE2_AND_JOBID_STORE_SPACE_ORDER);
@@ -713,36 +769,40 @@ int bitmain_axi_close()
     close(fd_fpga_mem);
 }
 
+
 int get_fan_control(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + FAN_CONTROL));
-    applog(LOG_DEBUG,"%s: FAN_CONTROL is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: FAN_CONTROL is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
+
 
 void set_fan_control(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + FAN_CONTROL)) = value;
-    applog(LOG_DEBUG,"%s: set FAN_CONTROL is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set FAN_CONTROL is 0x%x\n", __FUNCTION__, value);
     get_fan_control();
 }
+
 
 int get_hash_on_plug(void)
 {
     int ret = -1;
     ret = *(axi_fpga_addr + HASH_ON_PLUG);
 
-    applog(LOG_DEBUG,"%s: HASH_ON_PLUG is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: HASH_ON_PLUG is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
+
 
 int get_hardware_version(void)
 {
     int ret = -1;
     ret = *((int *)(axi_fpga_addr + HARDWARE_VERSION));
 
-    applog(LOG_DEBUG,"%s: HARDWARE_VERSION is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: HARDWARE_VERSION is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
@@ -754,24 +814,26 @@ int get_fan_speed(unsigned char *fan_id, unsigned int *fan_speed)
     *fan_id = (unsigned char)(0x00000007 & (ret >> 8));
     if(*fan_speed > 0)
     {
-        applog(LOG_DEBUG,"%s: fan_id is 0x%x, fan_speed is 0x%x\n", __FUNCTION__, *fan_id, *fan_speed);
+        // applog(LOG_DEBUG,"%s: fan_id is 0x%x, fan_speed is 0x%x\n", __FUNCTION__, *fan_id, *fan_speed);
     }
     return ret;
 }
+
 
 int get_temperature_0_3(void)
 {
     int ret = -1;
     ret = *((int *)(axi_fpga_addr + TEMPERATURE_0_3));
-    //applog(LOG_DEBUG,"%s: TEMPERATURE_0_3 is 0x%x\n", __FUNCTION__, ret);
+    //// applog(LOG_DEBUG,"%s: TEMPERATURE_0_3 is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
+
 
 int get_temperature_4_7(void)
 {
     int ret = -1;
     ret = *((int *)(axi_fpga_addr + TEMPERATURE_4_7));
-    //applog(LOG_DEBUG,"%s: TEMPERATURE_4_7 is 0x%x\n", __FUNCTION__, ret);
+    //// applog(LOG_DEBUG,"%s: TEMPERATURE_4_7 is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
@@ -779,7 +841,7 @@ int get_temperature_8_11(void)
 {
     int ret = -1;
     ret = *((int *)(axi_fpga_addr + TEMPERATURE_8_11));
-    //applog(LOG_DEBUG,"%s: TEMPERATURE_8_11 is 0x%x\n", __FUNCTION__, ret);
+    //// applog(LOG_DEBUG,"%s: TEMPERATURE_8_11 is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
@@ -787,7 +849,7 @@ int get_temperature_12_15(void)
 {
     int ret = -1;
     ret = *((int *)(axi_fpga_addr + TEMPERATURE_12_15));
-    //applog(LOG_DEBUG,"%s: TEMPERATURE_12_15 is 0x%x\n", __FUNCTION__, ret);
+    //// applog(LOG_DEBUG,"%s: TEMPERATURE_12_15 is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
@@ -795,14 +857,14 @@ int get_time_out_control(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + TIME_OUT_CONTROL));
-    applog(LOG_DEBUG,"%s: TIME_OUT_CONTROL is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: TIME_OUT_CONTROL is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_time_out_control(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + TIME_OUT_CONTROL)) = value;
-    applog(LOG_DEBUG,"%s: set FAN_CONTROL is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set FAN_CONTROL is 0x%x\n", __FUNCTION__, value);
     get_time_out_control();
 }
 
@@ -815,7 +877,7 @@ int get_BC_command_buffer(unsigned int *buf)
     *(buf + 1) = ret;
     ret = *((unsigned int *)(axi_fpga_addr + BC_COMMAND_BUFFER + 2));
     *(buf + 2) = ret;
-    applog(LOG_DEBUG,"%s: BC_COMMAND_BUFFER buf[0]: 0x%x, buf[1]: 0x%x, buf[2]: 0x%x\n", __FUNCTION__, *(buf + 0), *(buf + 1), *(buf + 2));
+    // applog(LOG_DEBUG,"%s: BC_COMMAND_BUFFER buf[0]: 0x%x, buf[1]: 0x%x, buf[2]: 0x%x\n", __FUNCTION__, *(buf + 0), *(buf + 1), *(buf + 2));
     return ret;
 }
 
@@ -825,7 +887,7 @@ void set_BC_command_buffer(unsigned int *value)
     *((unsigned int *)(axi_fpga_addr + BC_COMMAND_BUFFER)) = *(value + 0);      //this is for FIL
     *((unsigned int *)(axi_fpga_addr + BC_COMMAND_BUFFER + 1)) = *(value + 1);
     *((unsigned int *)(axi_fpga_addr + BC_COMMAND_BUFFER + 2)) = *(value + 2);
-    applog(LOG_DEBUG,"%s: set BC_COMMAND_BUFFER value[0]: 0x%x, value[1]: 0x%x, value[2]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1), *(value + 2));
+    // applog(LOG_DEBUG,"%s: set BC_COMMAND_BUFFER value[0]: 0x%x, value[1]: 0x%x, value[2]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1), *(value + 2));
     get_BC_command_buffer(buf);
 }
 
@@ -833,7 +895,7 @@ int get_nonce_number_in_fifo(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + NONCE_NUMBER_IN_FIFO));
-    //applog(LOG_DEBUG,"%s: NONCE_NUMBER_IN_FIFO is 0x%x\n", __FUNCTION__, ret);
+    //// applog(LOG_DEBUG,"%s: NONCE_NUMBER_IN_FIFO is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
@@ -844,7 +906,7 @@ int get_return_nonce(unsigned int *buf)
     *(buf + 0) = ret;
     ret = *((unsigned int *)(axi_fpga_addr + RETURN_NONCE + 1));
     *(buf + 1) = ret;   //there is nonce3
-    //applog(LOG_DEBUG,"%s: RETURN_NONCE buf[0] is 0x%x, buf[1] is 0x%x\n", __FUNCTION__, *(buf + 0), *(buf + 1));
+    //// applog(LOG_DEBUG,"%s: RETURN_NONCE buf[0] is 0x%x, buf[1] is 0x%x\n", __FUNCTION__, *(buf + 0), *(buf + 1));
     return ret;
 }
 
@@ -852,21 +914,21 @@ int get_BC_write_command(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + BC_WRITE_COMMAND));
-    applog(LOG_DEBUG,"%s: BC_WRITE_COMMAND is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: BC_WRITE_COMMAND is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_BC_write_command(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + BC_WRITE_COMMAND)) = value;
-    //applog(LOG_DEBUG,"%s: set BC_WRITE_COMMAND is 0x%x\n", __FUNCTION__, value);
+    //// applog(LOG_DEBUG,"%s: set BC_WRITE_COMMAND is 0x%x\n", __FUNCTION__, value);
 
     if(value & BC_COMMAND_BUFFER_READY)
     {
         while(get_BC_write_command() & BC_COMMAND_BUFFER_READY)
         {
             cgsleep_ms(1);
-            //applog(LOG_DEBUG,"%s ---\n", __FUNCTION__);
+            //// applog(LOG_DEBUG,"%s ---\n", __FUNCTION__);
         }
     }
     else
@@ -879,14 +941,14 @@ int get_ticket_mask(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + TICKET_MASK_FPGA));
-    applog(LOG_DEBUG,"%s: TICKET_MASK_FPGA is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: TICKET_MASK_FPGA is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_ticket_mask(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + TICKET_MASK_FPGA)) = value;
-    applog(LOG_DEBUG,"%s: set TICKET_MASK_FPGA is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set TICKET_MASK_FPGA is 0x%x\n", __FUNCTION__, value);
     get_ticket_mask();
 }
 
@@ -894,14 +956,14 @@ int get_job_id(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + JOB_ID));
-    applog(LOG_DEBUG,"%s: JOB_ID is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: JOB_ID is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_job_id(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + JOB_ID)) = value;
-    applog(LOG_DEBUG,"%s: set JOB_ID is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set JOB_ID is 0x%x\n", __FUNCTION__, value);
     get_job_id();
 }
 
@@ -909,14 +971,14 @@ int get_job_length(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + JOB_LENGTH));
-    applog(LOG_DEBUG,"%s: JOB_LENGTH is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: JOB_LENGTH is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_job_length(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + JOB_LENGTH)) = value;
-    applog(LOG_DEBUG,"%s: set JOB_LENGTH is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set JOB_LENGTH is 0x%x\n", __FUNCTION__, value);
     get_job_id();
 }
 
@@ -925,14 +987,14 @@ int get_block_header_version(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + BLOCK_HEADER_VERSION));
-    applog(LOG_DEBUG,"%s: BLOCK_HEADER_VERSION is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: BLOCK_HEADER_VERSION is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_block_header_version(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + BLOCK_HEADER_VERSION)) = value;
-    applog(LOG_DEBUG,"%s: set BLOCK_HEADER_VERSION is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set BLOCK_HEADER_VERSION is 0x%x\n", __FUNCTION__, value);
     get_block_header_version();
 }
 
@@ -940,14 +1002,14 @@ int get_time_stamp()
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + TIME_STAMP));
-    applog(LOG_DEBUG,"%s: TIME_STAMP is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: TIME_STAMP is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_time_stamp(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + TIME_STAMP)) = value;
-    applog(LOG_DEBUG,"%s: set TIME_STAMP is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set TIME_STAMP is 0x%x\n", __FUNCTION__, value);
     get_time_stamp();
 }
 
@@ -955,20 +1017,20 @@ int get_target_bits(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + TARGET_BITS));
-    applog(LOG_DEBUG,"%s: TARGET_BITS is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: TARGET_BITS is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_target_bits(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + TARGET_BITS)) = value;
-    applog(LOG_DEBUG,"%s: set TARGET_BITS is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set TARGET_BITS is 0x%x\n", __FUNCTION__, value);
     get_target_bits();
 }
 
 int get_pre_header_hash(unsigned int *buf)
 {
-    int ret = -1;
+    int ret    = -1;
     *(buf + 0) = *((unsigned int *)(axi_fpga_addr + PRE_HEADER_HASH));
     *(buf + 1) = *((unsigned int *)(axi_fpga_addr + PRE_HEADER_HASH + 1));
     *(buf + 2) = *((unsigned int *)(axi_fpga_addr + PRE_HEADER_HASH + 2));
@@ -977,15 +1039,15 @@ int get_pre_header_hash(unsigned int *buf)
     *(buf + 5) = *((unsigned int *)(axi_fpga_addr + PRE_HEADER_HASH + 5));
     *(buf + 6) = *((unsigned int *)(axi_fpga_addr + PRE_HEADER_HASH + 6));
     *(buf + 7) = *((unsigned int *)(axi_fpga_addr + PRE_HEADER_HASH + 7));
-    applog(LOG_DEBUG,"%s: PRE_HEADER_HASH buf[0]: 0x%x, buf[1]: 0x%x, buf[2]: 0x%x, buf[3]: 0x%x, buf[4]: 0x%x, buf[5]: 0x%x, buf[6]: 0x%x, buf[7]: 0x%x\n", __FUNCTION__, *(buf + 0), *(buf + 1), *(buf + 2), *(buf + 3), *(buf + 4), *(buf + 5), *(buf + 6), *(buf + 7));
+    // applog(LOG_DEBUG,"%s: PRE_HEADER_HASH buf[0]: 0x%x, buf[1]: 0x%x, buf[2]: 0x%x, buf[3]: 0x%x, buf[4]: 0x%x, buf[5]: 0x%x, buf[6]: 0x%x, buf[7]: 0x%x\n", __FUNCTION__, *(buf + 0), *(buf + 1), *(buf + 2), *(buf + 3), *(buf + 4), *(buf + 5), *(buf + 6), *(buf + 7));
     ret = *(buf + 7);
     return ret;
 }
 
 void set_pre_header_hash(unsigned int *value)
 {
-    unsigned int buf[8] = {0};
-    *(axi_fpga_addr + PRE_HEADER_HASH) = *(value + 0);
+    unsigned int buf[8]                    = {0};
+    *(axi_fpga_addr + PRE_HEADER_HASH)     = *(value + 0);
     *(axi_fpga_addr + PRE_HEADER_HASH + 1) = *(value + 1);
     *(axi_fpga_addr + PRE_HEADER_HASH + 2) = *(value + 2);
     *(axi_fpga_addr + PRE_HEADER_HASH + 3) = *(value + 3);
@@ -993,7 +1055,8 @@ void set_pre_header_hash(unsigned int *value)
     *(axi_fpga_addr + PRE_HEADER_HASH + 5) = *(value + 5);
     *(axi_fpga_addr + PRE_HEADER_HASH + 6) = *(value + 6);
     *(axi_fpga_addr + PRE_HEADER_HASH + 7) = *(value + 7);
-    applog(LOG_DEBUG,"%s: set PRE_HEADER_HASH value[0]: 0x%x, value[1]: 0x%x, value[2]: 0x%x, value[3]: 0x%x, value[4]: 0x%x, value[5]: 0x%x, value[6]: 0x%x, value[7]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1), *(value + 2), *(value + 3), *(value + 4), *(value + 5), *(value + 6), *(value + 7));
+
+    // applog(LOG_DEBUG,"%s: set PRE_HEADER_HASH value[0]: 0x%x, value[1]: 0x%x, value[2]: 0x%x, value[3]: 0x%x, value[4]: 0x%x, value[5]: 0x%x, value[6]: 0x%x, value[7]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1), *(value + 2), *(value + 3), *(value + 4), *(value + 5), *(value + 6), *(value + 7));
     //get_pre_header_hash(buf);
 }
 
@@ -1001,14 +1064,14 @@ int get_coinbase_length_and_nonce2_length(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + COINBASE_AND_NONCE2_LENGTH));
-    applog(LOG_DEBUG,"%s: COINBASE_AND_NONCE2_LENGTH is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: COINBASE_AND_NONCE2_LENGTH is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_coinbase_length_and_nonce2_length(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + COINBASE_AND_NONCE2_LENGTH)) = value;
-    applog(LOG_DEBUG,"%s: set COINBASE_AND_NONCE2_LENGTH is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set COINBASE_AND_NONCE2_LENGTH is 0x%x\n", __FUNCTION__, value);
     get_coinbase_length_and_nonce2_length();
 }
 
@@ -1017,7 +1080,7 @@ int get_work_nonce2(unsigned int *buf)
     int ret = -1;
     *(buf + 0) = *((unsigned int *)(axi_fpga_addr + WORK_NONCE_2));
     *(buf + 1) = *((unsigned int *)(axi_fpga_addr + WORK_NONCE_2 + 1));
-    applog(LOG_DEBUG,"%s: WORK_NONCE_2 buf[0]: 0x%x, buf[1]: 0x%x\n", __FUNCTION__, *(buf + 0), *(buf + 1));
+    // applog(LOG_DEBUG,"%s: WORK_NONCE_2 buf[0]: 0x%x, buf[1]: 0x%x\n", __FUNCTION__, *(buf + 0), *(buf + 1));
     return ret;
 }
 
@@ -1026,7 +1089,7 @@ void set_work_nonce2(unsigned int *value)
     unsigned int buf[2] = {0};
     *((unsigned int *)(axi_fpga_addr + WORK_NONCE_2)) = *(value + 0);
     *((unsigned int *)(axi_fpga_addr + WORK_NONCE_2 + 1)) = *(value + 1);
-    applog(LOG_DEBUG,"%s: set WORK_NONCE_2 value[0]: 0x%x, value[1]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1));
+    // applog(LOG_DEBUG,"%s: set WORK_NONCE_2 value[0]: 0x%x, value[1]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1));
     get_work_nonce2(buf);
 }
 
@@ -1035,14 +1098,14 @@ int get_merkle_bin_number(void)
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + MERKLE_BIN_NUMBER));
     ret = ret & 0x0000ffff;
-    applog(LOG_DEBUG,"%s: MERKLE_BIN_NUMBER is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: MERKLE_BIN_NUMBER is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_merkle_bin_number(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + MERKLE_BIN_NUMBER)) = value & 0x0000ffff;
-    applog(LOG_DEBUG,"%s: set MERKLE_BIN_NUMBER is 0x%x\n", __FUNCTION__, value & 0x0000ffff);
+    // applog(LOG_DEBUG,"%s: set MERKLE_BIN_NUMBER is 0x%x\n", __FUNCTION__, value & 0x0000ffff);
     get_merkle_bin_number();
 }
 
@@ -1050,14 +1113,14 @@ int get_nonce_fifo_interrupt(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + NONCE_FIFO_INTERRUPT));
-    applog(LOG_DEBUG,"%s: NONCE_FIFO_INTERRUPT is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: NONCE_FIFO_INTERRUPT is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_nonce_fifo_interrupt(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + NONCE_FIFO_INTERRUPT)) = value;
-    applog(LOG_DEBUG,"%s: set NONCE_FIFO_INTERRUPT is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set NONCE_FIFO_INTERRUPT is 0x%x\n", __FUNCTION__, value);
     get_nonce_fifo_interrupt();
 }
 
@@ -1065,7 +1128,7 @@ int get_dhash_acc_control(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + DHASH_ACC_CONTROL));
-    applog(LOG_DEBUG,"%s: DHASH_ACC_CONTROL is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: DHASH_ACC_CONTROL is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
@@ -1073,7 +1136,7 @@ void set_dhash_acc_control(unsigned int value)
 {
     int a = 10;
     *((unsigned int *)(axi_fpga_addr + DHASH_ACC_CONTROL)) = value;
-    applog(LOG_DEBUG,"%s: set DHASH_ACC_CONTROL is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set DHASH_ACC_CONTROL is 0x%x\n", __FUNCTION__, value);
     while (a>0)
     {
         if ((value | NEW_BLOCK) == (get_dhash_acc_control() |NEW_BLOCK))
@@ -1083,7 +1146,7 @@ void set_dhash_acc_control(unsigned int value)
         cgsleep_ms(2);
     }
     if (a == 0)
-        applog(LOG_DEBUG,"%s set DHASH_ACC_CONTROL failed!",__FUNCTION__);
+        // applog(LOG_DEBUG,"%s set DHASH_ACC_CONTROL failed!",__FUNCTION__);
 }
 
 void set_TW_write_command(unsigned int *value)
@@ -1092,9 +1155,9 @@ void set_TW_write_command(unsigned int *value)
     for(i=0; i<TW_WRITE_COMMAND_LEN/sizeof(unsigned int); i++)
     {
         *((unsigned int *)(axi_fpga_addr + TW_WRITE_COMMAND + i)) = *(value + i);       //this is for FIL
-        //applog(LOG_DEBUG,"%s: set TW_WRITE_COMMAND value[%d]: 0x%x\n", __FUNCTION__, i, *(value + i));
+        //// applog(LOG_DEBUG,"%s: set TW_WRITE_COMMAND value[%d]: 0x%x\n", __FUNCTION__, i, *(value + i));
     }
-    //applog(LOG_DEBUG,"%s: set TW_WRITE_COMMAND value[0]: 0x%x, value[1]: 0x%x, value[2]: 0x%x, value[3]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1), *(value + 2), *(value + 3));
+    //// applog(LOG_DEBUG,"%s: set TW_WRITE_COMMAND value[0]: 0x%x, value[1]: 0x%x, value[2]: 0x%x, value[3]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1), *(value + 2), *(value + 3));
 }
 
 void set_TW_write_command_vil(unsigned int *value)
@@ -1103,16 +1166,16 @@ void set_TW_write_command_vil(unsigned int *value)
     for(i=0; i<TW_WRITE_COMMAND_LEN_VIL/sizeof(unsigned int); i++)
     {
         *((unsigned int *)(axi_fpga_addr + TW_WRITE_COMMAND + i)) = *(value + i);//this is for FIL
-        //applog(LOG_DEBUG,"%s: set TW_WRITE_COMMAND value[%d]: 0x%x\n", __FUNCTION__, i, *(value + i));
+        //// applog(LOG_DEBUG,"%s: set TW_WRITE_COMMAND value[%d]: 0x%x\n", __FUNCTION__, i, *(value + i));
     }
-    //applog(LOG_DEBUG,"%s: set TW_WRITE_COMMAND value[0]: 0x%x, value[1]: 0x%x, value[2]: 0x%x, value[3]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1), *(value + 2), *(value + 3));
+    //// applog(LOG_DEBUG,"%s: set TW_WRITE_COMMAND value[0]: 0x%x, value[1]: 0x%x, value[2]: 0x%x, value[3]: 0x%x\n", __FUNCTION__, *(value + 0), *(value + 1), *(value + 2), *(value + 3));
 }
 
 int get_buffer_space(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + BUFFER_SPACE));
-    //applog(LOG_DEBUG,"%s: work fifo ready is 0x%x\n", __FUNCTION__, ret);
+    //// applog(LOG_DEBUG,"%s: work fifo ready is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
@@ -1120,14 +1183,14 @@ int get_hash_counting_number(void)
 {
     int ret = -1;
     ret = *((unsigned int *)(axi_fpga_addr + HASH_COUNTING_NUMBER_FPGA));
-    applog(LOG_DEBUG,"%s: DHASH_ACC_CONTROL is 0x%x\n", __FUNCTION__, ret);
+    // applog(LOG_DEBUG,"%s: DHASH_ACC_CONTROL is 0x%x\n", __FUNCTION__, ret);
     return ret;
 }
 
 void set_hash_counting_number(unsigned int value)
 {
     *((unsigned int *)(axi_fpga_addr + HASH_COUNTING_NUMBER_FPGA)) = value;
-    applog(LOG_DEBUG,"%s: set DHASH_ACC_CONTROL is 0x%x\n", __FUNCTION__, value);
+    // applog(LOG_DEBUG,"%s: set DHASH_ACC_CONTROL is 0x%x\n", __FUNCTION__, value);
     get_hash_counting_number();
 }
 
@@ -1143,7 +1206,7 @@ void check_chain()
 
     if(ret < 0)
     {
-        applog(LOG_DEBUG,"%s: get_hash_on_plug functions error\n");
+        // applog(LOG_DEBUG,"%s: get_hash_on_plug functions error\n");
     }
     else
     {
@@ -1224,16 +1287,16 @@ int get_all_temperature()
             else if((dev->chain_exist[i] == 0) && temperature)
             {
                 ret_value = -1;
-                applog(LOG_DEBUG,"%s: chain%d is not exist, but it has temperature:%d\n", __FUNCTION__, i, temperature);
+                // applog(LOG_DEBUG,"%s: chain%d is not exist, but it has temperature:%d\n", __FUNCTION__, i, temperature);
             }
             else if((dev->chain_exist[i] == 1) && !temperature)
             {
                 ret_value = -1;
-                applog(LOG_DEBUG,"%s: chain%d is exist, but its temperature is:%d\n", __FUNCTION__, i, temperature);
+                // applog(LOG_DEBUG,"%s: chain%d is exist, but its temperature is:%d\n", __FUNCTION__, i, temperature);
             }
             else
             {
-                //applog(LOG_DEBUG,"%s: no chain%d no temperature\n", __FUNCTION__, i);
+                //// applog(LOG_DEBUG,"%s: no chain%d no temperature\n", __FUNCTION__, i);
             }
         }
     }
@@ -1253,16 +1316,16 @@ int get_all_temperature()
             else if((dev->chain_exist[i+4] == 0) && temperature)
             {
                 ret_value = -1;
-                applog(LOG_DEBUG,"%s: chain%d is not exist, but it has temperature:%d\n", __FUNCTION__, i+4, temperature);
+                // applog(LOG_DEBUG,"%s: chain%d is not exist, but it has temperature:%d\n", __FUNCTION__, i+4, temperature);
             }
             else if((dev->chain_exist[i+4] == 1) && !temperature)
             {
                 ret_value = -1;
-                applog(LOG_DEBUG,"%s: chain%d is exist, but its temperature is:%d\n", __FUNCTION__, i+4, temperature);
+                // applog(LOG_DEBUG,"%s: chain%d is exist, but its temperature is:%d\n", __FUNCTION__, i+4, temperature);
             }
             else
             {
-                //applog(LOG_DEBUG,"%s: no chain%d no temperature\n", __FUNCTION__, i+4);
+                //// applog(LOG_DEBUG,"%s: no chain%d no temperature\n", __FUNCTION__, i+4);
             }
         }
     }
@@ -1282,16 +1345,16 @@ int get_all_temperature()
             else if((dev->chain_exist[i+8] == 0) && temperature)
             {
                 ret_value = -1;
-                applog(LOG_DEBUG,"%s: chain%d is not exist, but it has temperature:%d\n", __FUNCTION__, i+8, temperature);
+                // applog(LOG_DEBUG,"%s: chain%d is not exist, but it has temperature:%d\n", __FUNCTION__, i+8, temperature);
             }
             else if((dev->chain_exist[i+8] == 1) && !temperature)
             {
                 ret_value = -1;
-                applog(LOG_DEBUG,"%s: chain%d is exist, but its temperature is:%d\n", __FUNCTION__, i+8, temperature);
+                // applog(LOG_DEBUG,"%s: chain%d is exist, but its temperature is:%d\n", __FUNCTION__, i+8, temperature);
             }
             else
             {
-                //applog(LOG_DEBUG,"%s: no chain%d no temperature\n", __FUNCTION__, i+8);
+                //// applog(LOG_DEBUG,"%s: no chain%d no temperature\n", __FUNCTION__, i+8);
             }
         }
     }
@@ -1311,16 +1374,16 @@ int get_all_temperature()
             else if((dev->chain_exist[i+12] == 0) && temperature)
             {
                 ret_value = -1;
-                applog(LOG_DEBUG,"%s: chain%d is not exist, but it has temperature:%d\n", __FUNCTION__, i+12, temperature);
+                // applog(LOG_DEBUG,"%s: chain%d is not exist, but it has temperature:%d\n", __FUNCTION__, i+12, temperature);
             }
             else if((dev->chain_exist[i+12] == 1) && !temperature)
             {
                 ret_value = -1;
-                applog(LOG_DEBUG,"%s: chain%d is exist, but its temperature is:%d\n", __FUNCTION__, i+12, temperature);
+                // applog(LOG_DEBUG,"%s: chain%d is exist, but its temperature is:%d\n", __FUNCTION__, i+12, temperature);
             }
             else
             {
-                //applog(LOG_DEBUG,"%s: no chain%d no temperature\n", __FUNCTION__, i+12);
+                //// applog(LOG_DEBUG,"%s: no chain%d no temperature\n", __FUNCTION__, i+12);
             }
         }
     }
@@ -1372,7 +1435,7 @@ void set_PWM_according_to_temperature()
     temp_highest = dev->temp_top1;
     if(temp_highest >= MAX_FAN_TEMP)
     {
-        applog(LOG_DEBUG,"%s: Temperature is higher than %d 'C\n", __FUNCTION__, temp_highest);
+        // applog(LOG_DEBUG,"%s: Temperature is higher than %d 'C\n", __FUNCTION__, temp_highest);
     }
 
     if(dev->fan_eft)
@@ -1390,7 +1453,7 @@ void set_PWM_according_to_temperature()
     {
         set_PWM(MAX_PWM_PERCENT);
         dev->fan_pwm = MAX_PWM_PERCENT;
-        applog(LOG_DEBUG,"%s: Set PWM percent : MAX_PWM_PERCENT\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: Set PWM percent : MAX_PWM_PERCENT\n", __FUNCTION__);
         return;
     }
 
@@ -1398,7 +1461,7 @@ void set_PWM_according_to_temperature()
     {
         set_PWM(MIN_PWM_PERCENT);
         dev->fan_pwm = MIN_PWM_PERCENT;
-        applog(LOG_DEBUG,"%s: Set PWM percent : MIN_PWM_PERCENT\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: Set PWM percent : MIN_PWM_PERCENT\n", __FUNCTION__);
         return;
     }
 
@@ -1410,7 +1473,7 @@ void set_PWM_according_to_temperature()
             pwm_percent = 0;
         }
         dev->fan_pwm = pwm_percent;
-        applog(LOG_DEBUG,"%s: Set PWM percent : %d\n", __FUNCTION__, pwm_percent);
+        // applog(LOG_DEBUG,"%s: Set PWM percent : %d\n", __FUNCTION__, pwm_percent);
         set_PWM(pwm_percent);
         last_temperature = temp_highest;
     }
@@ -1458,17 +1521,17 @@ void set_frequency(unsigned short int frequency) // of what?
     uint16_t reg_data_pll2 = 0;
     uint32_t reg_data_vil = 0;
 
-    applog(LOG_DEBUG,"\n--- %s\n", __FUNCTION__);
+    // applog(LOG_DEBUG,"\n--- %s\n", __FUNCTION__);
 
     get_plldata(1385, frequency, &reg_data_pll, &reg_data_pll2, &reg_data_vil); //uses the ppl of S7! 1385
 
-    applog(LOG_DEBUG,"%s: frequency = %d\n", __FUNCTION__, frequency);
+    // applog(LOG_DEBUG,"%s: frequency = %d\n", __FUNCTION__, frequency);
 
     for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++) // BITMAIN_MAX_CHAIN_NUM = now 4 before 16
     {
         if(dev->chain_exist[i] == 1)
         {
-            //applog(LOG_DEBUG,"%s: i = %d\n", __FUNCTION__, i);
+            //// applog(LOG_DEBUG,"%s: i = %d\n", __FUNCTION__, i);
             if(!opt_multi_version)  // fil mode
             {
                 memset(buf,0,sizeof(buf));
@@ -1549,39 +1612,43 @@ void set_frequency_with_addr(unsigned short int frequency,unsigned char mode,uns
     uint32_t reg_data_vil = 0;
     i = chain;
 
-    applog(LOG_DEBUG,"\n--- %s\n", __FUNCTION__);
+    // applog(LOG_DEBUG,"\n--- %s\n", __FUNCTION__);
 
     get_plldata(1385, frequency, &reg_data_pll, &reg_data_pll2, &reg_data_vil);
-    applog(LOG_DEBUG,"%s: frequency = %d\n", __FUNCTION__, frequency);
+    // applog(LOG_DEBUG,"%s: frequency = %d\n", __FUNCTION__, frequency);
 
-    //applog(LOG_DEBUG,"%s: i = %d\n", __FUNCTION__, i);
+    //// applog(LOG_DEBUG,"%s: i = %d\n", __FUNCTION__, i);
     if(!opt_multi_version)  // fil mode
     {
         memset(buf,0,sizeof(buf));
         memset(cmd_buf,0,sizeof(cmd_buf));
-        buf[0] = 0;
-        buf[0] |= SET_PLL_DIVIDER1;
-        buf[1] = (reg_data_pll >> 16) & 0xff;
-        buf[2] = (reg_data_pll >> 8) & 0xff;
-        buf[3] = (reg_data_pll >> 0) & 0xff;
-        buf[3] |= CRC5(buf, 4*8 - 5);
+
+        buf[0]     = 0;
+        buf[0]    |= SET_PLL_DIVIDER1;
+        buf[1]     = (reg_data_pll >> 16) & 0xff;
+        buf[2]     = (reg_data_pll >> 8) & 0xff;
+        buf[3]     = (reg_data_pll >> 0) & 0xff;
+        buf[3]    |= CRC5(buf, 4*8 - 5);
         cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
 
         set_BC_command_buffer(cmd_buf);
-        ret = get_BC_write_command();
+
+        ret   = get_BC_write_command();
         value = BC_COMMAND_BUFFER_READY | BC_COMMAND_EN_CHAIN_ID| (i << 16) | (ret & 0x1f);
+
         set_BC_write_command(value);
 
         cgsleep_us(3000);
 
         memset(buf,0,sizeof(buf));
         memset(cmd_buf,0,sizeof(cmd_buf));
-        buf[0] = SET_PLL_DIVIDER2;
-        buf[0] |= COMMAND_FOR_ALL;
-        buf[1] = 0;     //addr
-        buf[2] = reg_data_pll2 >> 8;
-        buf[3] = reg_data_pll2& 0x0ff;
-        buf[3] |= CRC5(buf, 4*8 - 5);
+
+        buf[0]     = SET_PLL_DIVIDER2;
+        buf[0]    |= COMMAND_FOR_ALL;
+        buf[1]     = 0;     //addr
+        buf[2]     = reg_data_pll2 >> 8;
+        buf[3]     = reg_data_pll2& 0x0ff;
+        buf[3]    |= CRC5(buf, 4*8 - 5);
         cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
 
         set_BC_command_buffer(cmd_buf);
@@ -1664,7 +1731,7 @@ void read_asic_register(unsigned char chain, unsigned char mode, unsigned char c
         if (mode)   //all
             buf[0] |= COMMAND_FOR_ALL;
         buf[3] = CRC5(buf, 4*8 - 5);
-        applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
+        // applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
 
         cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
         set_BC_command_buffer(cmd_buf);
@@ -1682,7 +1749,7 @@ void read_asic_register(unsigned char chain, unsigned char mode, unsigned char c
         buf[2] = chip_addr;
         buf[3] = reg_addr;
         buf[4] = CRC5(buf, 4*8);
-        applog(LOG_DEBUG,"%s:VIL buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x, buf[4]=0x%x", __FUNCTION__, buf[0], buf[1], buf[2], buf[3], buf[4]);
+        // applog(LOG_DEBUG,"%s:VIL buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x, buf[4]=0x%x", __FUNCTION__, buf[0], buf[1], buf[2], buf[3], buf[4]);
 
         cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
         cmd_buf[1] = buf[4]<<24;
@@ -1834,7 +1901,7 @@ void check_asic_reg(unsigned int reg)
         if(dev->chain_exist[i] == 1)
         {
             tmp_rate = 0;
-            applog(LOG_DEBUG,"%s: check chain J%d \n", __FUNCTION__, i+1);
+            // applog(LOG_DEBUG,"%s: check chain J%d \n", __FUNCTION__, i + 1);
             read_asic_register(i, 1, 0, reg);
             if (reg ==CHIP_ADDRESS)
                 dev->chain_asic_num[i] = 0;
@@ -1846,7 +1913,7 @@ void check_asic_reg(unsigned int reg)
                 pthread_mutex_lock(&reg_mutex);
 
                 reg_value_num = reg_value_buf.reg_value_num;
-                //applog(LOG_DEBUG,"%s: reg_value_num = %d\n", __FUNCTION__, reg_value_num);
+                //// applog(LOG_DEBUG,"%s: reg_value_num = %d\n", __FUNCTION__, reg_value_num);
                 pthread_mutex_unlock(&reg_mutex);
                 if((reg_value_num >= MAX_NONCE_NUMBER_IN_FIFO || reg_value_buf.p_rd >= MAX_NONCE_NUMBER_IN_FIFO) && not_reg_data_time <3)
                 {
@@ -1858,33 +1925,33 @@ void check_asic_reg(unsigned int reg)
                     return;
                 }
 
-                //applog(LOG_DEBUG,"%s: reg_value_buf.reg_value_num = 0x%x\n", __FUNCTION__, reg_value_num);
+                //// applog(LOG_DEBUG,"%s: reg_value_buf.reg_value_num = 0x%x\n", __FUNCTION__, reg_value_num);
 
                 if(reg_value_num > 0)
                 {
                     not_reg_data_time = 0;
 
-                    applog(LOG_DEBUG,"%s: reg_value_buf.reg_value_num = %d\n", __FUNCTION__, reg_value_num);
+                    // applog(LOG_DEBUG,"%s: reg_value_buf.reg_value_num = %d\n", __FUNCTION__, reg_value_num);
 
                     for(j = 0; j < reg_value_num; j++)
                     {
                         pthread_mutex_lock(&reg_mutex);
 
-                        //applog(LOG_DEBUG,"%\n");
+                        //// applog(LOG_DEBUG,"%\n");
                         if(reg_value_buf.reg_buffer[reg_value_buf.p_rd].chain_number != i)
                         {
-                            applog(LOG_DEBUG,"%s: the return data is from chain%d, but it should be from chain%d\n", __FUNCTION__, reg_value_buf.reg_buffer[reg_value_buf.p_rd].chain_number, i);
+                            // applog(LOG_DEBUG,"%s: the return data is from chain%d, but it should be from chain%d\n", __FUNCTION__, reg_value_buf.reg_buffer[reg_value_buf.p_rd].chain_number, i);
                             pthread_mutex_unlock(&reg_mutex);
                             continue;
                         }
-                        //applog(LOG_DEBUG,"@\n");
+                        //// applog(LOG_DEBUG,"@\n");
 
                         reg_buf[3] = (unsigned char)(reg_value_buf.reg_buffer[reg_value_buf.p_rd].reg_value & 0xff);
                         reg_buf[2] = (unsigned char)((reg_value_buf.reg_buffer[reg_value_buf.p_rd].reg_value >> 8) & 0xff);
                         reg_buf[1] = (unsigned char)((reg_value_buf.reg_buffer[reg_value_buf.p_rd].reg_value >> 16)& 0xff);
                         reg_buf[0] = (unsigned char)((reg_value_buf.reg_buffer[reg_value_buf.p_rd].reg_value >> 24)& 0xff);
 
-                        applog(LOG_DEBUG,"%s: reg_value = 0x%x\n", __FUNCTION__, reg_value_buf.reg_buffer[reg_value_buf.p_rd].reg_value);
+                        // applog(LOG_DEBUG,"%s: reg_value = 0x%x\n", __FUNCTION__, reg_value_buf.reg_buffer[reg_value_buf.p_rd].reg_value);
 
                         reg_value_buf.p_rd++;
                         reg_value_buf.reg_value_num--;
@@ -1892,7 +1959,7 @@ void check_asic_reg(unsigned int reg)
                         {
                             reg_value_buf.p_rd = 0;
                         }
-                        //applog(LOG_DEBUG,"%s: reg_value_buf.reg_value_num = %d\n", __FUNCTION__, reg_value_buf.reg_value_num);
+                        //// applog(LOG_DEBUG,"%s: reg_value_buf.reg_value_num = %d\n", __FUNCTION__, reg_value_buf.reg_value_num);
                         pthread_mutex_unlock(&reg_mutex);
 
                         if(reg == CHIP_ADDRESS)
@@ -1902,7 +1969,7 @@ void check_asic_reg(unsigned int reg)
 
                         if(reg == PLL_PARAMETER)
                         {
-                            applog(LOG_DEBUG,"%s: the asic freq is 0x%x\n", __FUNCTION__, reg_value_buf.reg_buffer[reg_value_buf.p_rd].reg_value);
+                            // applog(LOG_DEBUG,"%s: the asic freq is 0x%x\n", __FUNCTION__, reg_value_buf.reg_buffer[reg_value_buf.p_rd].reg_value);
                         }
 
                         if(reg == 0x08)
@@ -1915,7 +1982,7 @@ void check_asic_reg(unsigned int reg)
                             {
                                 sprintf(rate_buf + 2*i,"%02x",reg_buf[i]);
                             }
-                            applog(LOG_DEBUG,"%s: hashrate is %s\n", __FUNCTION__, rate_buf);
+                            // applog(LOG_DEBUG,"%s: hashrate is %s\n", __FUNCTION__, rate_buf);
                             temp_hash_rate = strtol(rate_buf,NULL,16);
                             temp_hash_rate = (temp_hash_rate << 24);
                             tmp_rate += temp_hash_rate;
@@ -1932,7 +1999,7 @@ void check_asic_reg(unsigned int reg)
                 {
                     cgsleep_ms(100);
                     not_reg_data_time++;
-                    applog(LOG_DEBUG,"%s: no asic address register come back for %d time.\n", __FUNCTION__, not_reg_data_time);
+                    // applog(LOG_DEBUG,"%s: no asic address register come back for %d time.\n", __FUNCTION__, not_reg_data_time);
                 }
             }
 
@@ -1944,14 +2011,14 @@ void check_asic_reg(unsigned int reg)
                 {
                     dev->max_asic_num_in_one_chain = dev->chain_asic_num[i];
                 }
-                applog(LOG_DEBUG,"%s: chain J%d has %d ASIC\n", __FUNCTION__, i+1, dev->chain_asic_num[i]);
+                // applog(LOG_DEBUG,"%s: chain J%d has %d ASIC\n", __FUNCTION__, i + 1, dev->chain_asic_num[i]);
             }
             if(read_num == CHAIN_ASIC_NUM)
             {
                 rate[i] = tmp_rate;
                 suffix_string_c5(rate[i], (char * )displayed_rate[i], sizeof(displayed_rate[i]), 6,false);
                 rate_error[i] = 0;
-                applog(LOG_DEBUG,"%s: chain %d hashrate is %s\n", __FUNCTION__, i, displayed_rate[i]);
+                // applog(LOG_DEBUG,"%s: chain %d hashrate is %s\n", __FUNCTION__, i, displayed_rate[i]);
             }
             if(read_num == 0 || status_error )
             {
@@ -1987,7 +2054,7 @@ unsigned int check_asic_reg_with_addr(unsigned int reg,unsigned int chip_addr,un
         reg_value_num = reg_value_buf.reg_value_num;
         //applog(LOG_NOTICE,"%s: p_wr = %d reg_value_num = %d\n", __FUNCTION__,reg_value_buf.p_wr,reg_value_buf.reg_value_num);
         pthread_mutex_unlock(&reg_mutex);
-        applog(LOG_DEBUG,"%s: reg_value_num %d", __FUNCTION__, reg_value_num);
+        // applog(LOG_DEBUG,"%s: reg_value_num %d", __FUNCTION__, reg_value_num);
         if((reg_value_num >= MAX_NONCE_NUMBER_IN_FIFO || reg_value_buf.p_rd >= MAX_NONCE_NUMBER_IN_FIFO ||reg_value_num ==0 ) && not_reg_data_time <RETRY_NUM)
         {
             not_reg_data_time ++;
@@ -2002,7 +2069,7 @@ unsigned int check_asic_reg_with_addr(unsigned int reg,unsigned int chip_addr,un
         for(i = 0; i < reg_value_num; i++)
         {
             reg_buf = reg_value_buf.reg_buffer[reg_value_buf.p_rd].reg_value;
-            applog(LOG_DEBUG,"%s: chip %x reg %x reg_buff %x", __FUNCTION__, chip_addr,reg,reg_buf);
+            // applog(LOG_DEBUG,"%s: chip %x reg %x reg_buff %x", __FUNCTION__, chip_addr,reg,reg_buf);
             reg_value_buf.p_rd++;
             reg_value_buf.reg_value_num--;
             if(reg_value_buf.p_rd < MAX_NONCE_NUMBER_IN_FIFO)
@@ -2155,7 +2222,7 @@ void chain_inactive(unsigned char chain)
         buf[1] = 0;
         buf[2] = 0;
         buf[3] = CRC5(buf, 4*8 - 5);
-        applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
+        // applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
 
         cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
         set_BC_command_buffer(cmd_buf);
@@ -2171,7 +2238,7 @@ void chain_inactive(unsigned char chain)
         buf[2] = 0;
         buf[3] = 0;
         buf[4] = CRC5(buf, 4*8);
-        applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x, buf[4]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3], buf[4]);
+        // applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x, buf[4]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3], buf[4]);
 
         cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
         cmd_buf[1] = buf[4]<<24;
@@ -2202,7 +2269,7 @@ void set_address(unsigned char chain, unsigned char mode, unsigned char address)
         if (mode)   //all
             buf[0] |= COMMAND_FOR_ALL;
         buf[3] = CRC5(buf, 4*8 - 5);
-        applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
+        // applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
 
         cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
         set_BC_command_buffer(cmd_buf);
@@ -2218,7 +2285,7 @@ void set_address(unsigned char chain, unsigned char mode, unsigned char address)
         buf[2] = address;
         buf[3] = 0;
         buf[4] = CRC5(buf, 4*8);
-        //applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x, buf[4]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3], buf[4]);
+        //// applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x, buf[4]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3], buf[4]);
 
         cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
         cmd_buf[1] = buf[4]<<24;
@@ -2272,7 +2339,7 @@ int calculate_asic_number(unsigned int actual_asic_number)
     }
     else
     {
-        applog(LOG_DEBUG,"actual_asic_number = %d, but it is error\n", actual_asic_number);
+        // applog(LOG_DEBUG,"actual_asic_number = %d, but it is error\n", actual_asic_number);
         return -1;
     }
     return i;
@@ -2315,7 +2382,7 @@ int calculate_core_number(unsigned int actual_core_number)
     }
     else
     {
-        applog(LOG_DEBUG,"actual_core_number = %d, but it is error\n", actual_core_number);
+        // applog(LOG_DEBUG,"actual_core_number = %d, but it is error\n", actual_core_number);
         return -1;
     }
     return i;
@@ -2328,7 +2395,7 @@ void software_set_address()
     unsigned char chip_addr = 0;
     unsigned char check_bit = 0;
 
-    applog(LOG_DEBUG,"--- %s\n", __FUNCTION__);
+    // applog(LOG_DEBUG,"--- %s\n", __FUNCTION__);
 
     temp_asic_number = calculate_asic_number(dev->max_asic_num_in_one_chain);
     if(temp_asic_number <= 0)
@@ -2349,7 +2416,7 @@ void software_set_address()
     {
         if(dev->chain_exist[i] == 1 && dev->chain_asic_num[i] == CHAIN_ASIC_NUM)
         {
-            applog(LOG_DEBUG,"%s: chain %d has %d ASIC, and addrInterval is %d\n", __FUNCTION__, i, dev->chain_asic_num[i], dev->addrInterval);
+            // applog(LOG_DEBUG,"%s: chain %d has %d ASIC, and addrInterval is %d\n", __FUNCTION__, i, dev->chain_asic_num[i], dev->addrInterval);
 
             chip_addr = 0;
             chain_inactive(i);
@@ -2390,7 +2457,7 @@ void set_asic_ticket_mask(unsigned int ticket_mask)
                 buf[2] = ticket_mask & 0x1f;
                 buf[0] |= COMMAND_FOR_ALL;
                 buf[3] = CRC5(buf, 4*8 - 5);
-                applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
+                // applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
 
                 cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
                 set_BC_command_buffer(cmd_buf);
@@ -2436,7 +2503,7 @@ void set_baud(unsigned char bauddiv,int no_use)
 
     if(dev->baud == bauddiv)
     {
-        applog(LOG_DEBUG,"%s: the setting bauddiv(%d) is the same as before\n", __FUNCTION__, bauddiv);
+        // applog(LOG_DEBUG,"%s: the setting bauddiv(%d) is the same as before\n", __FUNCTION__, bauddiv);
         return;
     }
 
@@ -2452,7 +2519,7 @@ void set_baud(unsigned char bauddiv,int no_use)
                 buf[2] = bauddiv & 0x1f;
                 buf[0] |= COMMAND_FOR_ALL;
                 buf[3] = CRC5(buf, 4*8 - 5);
-                applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
+                // applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
 
                 cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
                 set_BC_command_buffer(cmd_buf);
@@ -2476,7 +2543,7 @@ void set_baud(unsigned char bauddiv,int no_use)
                 cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
                 cmd_buf[1] = buf[4]<<24 | buf[5]<<16 | buf[6]<<8 | buf[7];
                 cmd_buf[2] = buf[8]<<24;
-                applog(LOG_DEBUG,"%s: cmd_buf[0]=0x%x, cmd_buf[1]=0x%x, cmd_buf[2]=0x%x\n", __FUNCTION__, cmd_buf[0], cmd_buf[1], cmd_buf[2]);
+                // applog(LOG_DEBUG,"%s: cmd_buf[0]=0x%x, cmd_buf[1]=0x%x, cmd_buf[2]=0x%x\n", __FUNCTION__, cmd_buf[0], cmd_buf[1], cmd_buf[2]);
 
                 set_BC_command_buffer(cmd_buf);
                 ret = get_BC_write_command();
@@ -2510,7 +2577,7 @@ void set_baud_with_addr(unsigned char bauddiv,unsigned int mode,unsigned int chi
         buf[2] = bauddiv & 0x1f;
         buf[0] |= COMMAND_FOR_ALL;
         buf[3] = CRC5(buf, 4*8 - 5);
-        applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
+        // applog(LOG_DEBUG,"%s: buf[0]=0x%x, buf[1]=0x%x, buf[2]=0x%x, buf[3]=0x%x\n", __FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
 
         cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
         set_BC_command_buffer(cmd_buf);
@@ -2584,7 +2651,7 @@ void init_uart_baud()
         bauddiv = baud; // = 1
     }
 
-    applog(LOG_DEBUG,"%s: bauddiv = %d\n", __FUNCTION__, bauddiv);
+    // applog(LOG_DEBUG,"%s: bauddiv = %d\n", __FUNCTION__, bauddiv);
 
     set_baud(bauddiv,1);
 }
@@ -2693,13 +2760,13 @@ void check_system_work()
                     for(j=0; j<dev->chain_asic_num[i]; j++)
                     {
                         avg_num += dev->chain_asic_nonce[i][j]; // [i max = BITMAIN_MAX_CHAIN_NUM] and [j = chain_asic_num = ]
-                        applog(LOG_DEBUG,"%s: chain %d asic %d asic_nonce_num %d", __FUNCTION__, i,j,dev->chain_asic_nonce[i][j]);
+                        // applog(LOG_DEBUG,"%s: chain %d asic %d asic_nonce_num %d", __FUNCTION__, i,j,dev->chain_asic_nonce[i][j]);
                     }
                 }
             }
             if (asic_num != 0)
             {
-                applog(LOG_DEBUG,"%s: avg_num %d asic_num %d", __FUNCTION__, avg_num,asic_num);
+                // applog(LOG_DEBUG,"%s: avg_num %d asic_num %d", __FUNCTION__, avg_num,asic_num);
                 avg_num = avg_num / asic_num / 8;
             }
             else
@@ -2712,33 +2779,38 @@ void check_system_work()
                 {
                     int offset = 0;
 
-                    for(j=0; j<dev->chain_asic_num[i]; j++)
+                    for(j = 0; j < dev->chain_asic_num[i]; j++)
                     {
-                        if(j%8 == 0)
+                        if(j % 8 == 0)
                         {
-                            dev->chain_asic_status_string[i][j+offset] = ' ';
+                            dev->chain_asic_status_string[i][j + offset] = ' ';
                             offset++;
                         }
 
-                        if(dev->chain_asic_nonce[i][j]>avg_num)
+                        if(dev->chain_asic_nonce[i][j] > avg_num)
                         {
-                            dev->chain_asic_status_string[i][j+offset] = 'o';
+                            dev->chain_asic_status_string[i][j + offset] = 'o';
                         }
                         else
                         {
-                            dev->chain_asic_status_string[i][j+offset] = 'x';
+                            dev->chain_asic_status_string[i][j + offset] = 'x';
                             error_asic++;
                         }
+                        
                         dev->chain_asic_nonce[i][j] = 0;
                     }
+                    
                     dev->chain_asic_status_string[i][j+offset] = '\0';
                 }
             }
+            
             copy_time(&tv_start, &tv_end);
         }
 
         check_fan();
+        
         set_PWM_according_to_temperature();
+        
         timersub(&tv_send, &tv_send_job, &diff);
 
         if(diff.tv_sec > 120 || dev->temp_top1 > MAX_TEMP
@@ -2796,7 +2868,7 @@ void open_core()
     struct vil_work work_vil;
     struct vil_work_1387 work_vil_1387;
 
-    loop = 114;
+    loop = 114; // for every core one loop, but loop what?
 
 
     if(!opt_multi_version)    // fil mode
@@ -2810,7 +2882,7 @@ void open_core()
         //gateblk[3] = CRC5(gateblk, 4*8 - 5);
         gateblk[3] = 0x80;  // MMEN=1
         gateblk[3] = 0x80 | (0x1f & CRC5(gateblk, 4*8 - 5));
-        applog(LOG_DEBUG,"%s: gateblk[0]=0x%x, gateblk[1]=0x%x, gateblk[2]=0x%x, gateblk[3]=0x%x\n", __FUNCTION__, gateblk[0], gateblk[1], gateblk[2], gateblk[3]);
+        // applog(LOG_DEBUG,"%s: gateblk[0]=0x%x, gateblk[1]=0x%x, gateblk[2]=0x%x, gateblk[3]=0x%x\n", __FUNCTION__, gateblk[0], gateblk[1], gateblk[2], gateblk[3]);
         cmd_buf[0] = gateblk[0]<<24 | gateblk[1]<<16 | gateblk[2]<<8 | gateblk[3];
 
         memset(data, 0x00, TW_WRITE_COMMAND_LEN);
@@ -2827,24 +2899,26 @@ void open_core()
                 set_BC_write_command(value);
                 cgsleep_us(10000);
 
-                for(m=0; m<loop; m++)
+                for(m=0; m < loop; m++) // loop = BM1387_CORE_NUM
                 {
                     do
                     {
                         work_fifo_ready = get_buffer_space();
+                        
                         if(work_fifo_ready & (0x1 << i))
                         {
                             break;
                         }
                         else    //work fifo is full, wait for 50ms ???
                         {
-                            //applog(LOG_DEBUG,"%s: chain%d work fifo not ready: 0x%x\n", __FUNCTION__, i, work_fifo_ready);
+                            //// applog(LOG_DEBUG,"%s: chain%d work fifo not ready: 0x%x\n", __FUNCTION__, i, work_fifo_ready);
                             cgsleep_ms(50); //  wait for 50ms ?? (default: cgsleep_us(1000))
                         }
                     }
+                    
                     while(1);
 
-                    if(m==0)    //new block
+                    if(m ==0)    //new block
                     {
                         data[0] = NEW_BLOCK_MARKER;
                     }
@@ -2855,14 +2929,14 @@ void open_core()
 
                     data[1] = i | 0x80; //set chain id and enable it
 
-                    if(m==0)
+                    if(m == 0)
                     {
                         ret = get_BC_write_command();   //disable null work
                         ret &= ~BC_COMMAND_EN_NULL_WORK;
                         set_BC_write_command(ret);
                     }
 
-                    if(m==loop - 1)
+                    if(m == loop - 1)
                     {
                         ret = get_BC_write_command();   //enable null work
                         ret &= (BC_COMMAND_EN_CHAIN_ID | BC_COMMAND_EN_NULL_WORK | ((i & 0xf) << 16));
@@ -2874,11 +2948,11 @@ void open_core()
                     for(j=0; j<TW_WRITE_COMMAND_LEN/sizeof(unsigned int); j++)
                     {
                         buf[j] = (data[4*j + 0] << 24) | (data[4*j + 1] << 16) | (data[4*j + 2] << 8) | data[4*j + 3];
-                        if(j==9)
+                        if(j == 9)
                         {
                             buf[j] = work_id++;
                         }
-                        //applog(LOG_DEBUG,"buf[%d] = 0x%x\n", j, buf[i]);
+                        //// applog(LOG_DEBUG,"buf[%d] = 0x%x\n", j, buf[i]);
                     }
 
                     set_TW_write_command(buf);
@@ -2930,7 +3004,7 @@ void open_core()
 
                 for(m=0; m<loop; m++)
                 {
-                    //applog(LOG_DEBUG,"%s: m = %d\n", __FUNCTION__, m);
+                    //// applog(LOG_DEBUG,"%s: m = %d\n", __FUNCTION__, m);
                     do
                     {
                         work_fifo_ready = get_buffer_space();
@@ -2940,13 +3014,13 @@ void open_core()
                         }
                         else    //work fifo is full, wait for 50ms
                         {
-                            //applog(LOG_DEBUG,"%s: chain%d work fifo not ready: 0x%x\n", __FUNCTION__, i, work_fifo_ready);
+                            //// applog(LOG_DEBUG,"%s: chain%d work fifo not ready: 0x%x\n", __FUNCTION__, i, work_fifo_ready);
                             cgsleep_us(1000);
                         }
                     }
                     while(1);
 
-                    if(m==0)    //new block
+                    if(m == 0)    //new block
                     {
                         work_vil_1387.work_type = NEW_BLOCK_MARKER;
                     }
@@ -2957,14 +3031,14 @@ void open_core()
 
                     work_vil_1387.chain_id = i | 0x80; //set chain id and enable it
 
-                    if(m==0)
+                    if(m == 0)
                     {
                         ret = get_BC_write_command();   //disable null work
                         ret &= ~BC_COMMAND_EN_NULL_WORK;
                         set_BC_write_command(ret);
                     }
 
-                    if(m==loop - 1)
+                    if(m == loop - 1)
                     {
                         ret = get_BC_write_command();   //enable null work
                         ret |= BC_COMMAND_EN_NULL_WORK;
@@ -3001,6 +3075,7 @@ void open_core()
     }
 }
 
+
 #if 0
 void open_core()
 {
@@ -3021,7 +3096,7 @@ void open_core()
         gateblk[2] = dev->baud | 0x80; //8-15 gateblk=1
         gateblk[0] |= 0x80;
         gateblk[3] = CRC5(gateblk, 4*8 - 5);
-        applog(LOG_DEBUG,"%s: gateblk[0]=0x%x, gateblk[1]=0x%x, gateblk[2]=0x%x, gateblk[3]=0x%x\n", __FUNCTION__, gateblk[0], gateblk[1], gateblk[2], gateblk[3]);
+        // applog(LOG_DEBUG,"%s: gateblk[0]=0x%x, gateblk[1]=0x%x, gateblk[2]=0x%x, gateblk[3]=0x%x\n", __FUNCTION__, gateblk[0], gateblk[1], gateblk[2], gateblk[3]);
         cmd_buf[0] = gateblk[0]<<24 | gateblk[1]<<16 | gateblk[2]<<8 | gateblk[3];
 
         memset(data, 0x00, TW_WRITE_COMMAND_LEN);
@@ -3038,9 +3113,9 @@ void open_core()
                 set_BC_write_command(value);
                 cgsleep_ms(10);
 
-                for(m=0; m<BM1385_CORE_NUM + 14; m++)  // BM1385_CORE_NUM = 50 + 14 = 64 ???
+                for(m=0; m < BM1385_CORE_NUM + 14; m++)  // BM1385_CORE_NUM = 50 + 14 = 64 ???
                 {
-                    //applog(LOG_DEBUG,"%s: m = %d\n", __FUNCTION__, m);
+                    //// applog(LOG_DEBUG,"%s: m = %d\n", __FUNCTION__, m);
                     do
                     {
                         work_fifo_ready = get_buffer_space();
@@ -3050,13 +3125,13 @@ void open_core()
                         }
                         else    //work fifo is full, wait for 50ms
                         {
-                            //applog(LOG_DEBUG,"%s: chain%d work fifo not ready: 0x%x\n", __FUNCTION__, i, work_fifo_ready);
+                            //// applog(LOG_DEBUG,"%s: chain%d work fifo not ready: 0x%x\n", __FUNCTION__, i, work_fifo_ready);
                             cgsleep_ms(1);
                         }
                     }
                     while(1);
 
-                    if(m==0)    //new block
+                    if(m == 0)    //new block
                     {
                         data[0] = NEW_BLOCK_MARKER;
                     }
@@ -3067,14 +3142,14 @@ void open_core()
 
                     data[1] = i | 0x80; //set chain id and enable it
 
-                    if(m==0)
+                    if(m == 0)
                     {
                         ret = get_BC_write_command();   //disable null work
                         ret &= ~BC_COMMAND_EN_NULL_WORK;
                         set_BC_write_command(ret);
                     }
 
-                    if(m==BM1385_CORE_NUM + 14 - 1) // = 50 + 14 - 1 = 63
+                    if(m == BM1385_CORE_NUM + 14 - 1) // = 50 + 14 - 1 = 63
                     {
                         ret = get_BC_write_command();   //enable null work
                         ret |= BC_COMMAND_EN_NULL_WORK;
@@ -3086,7 +3161,7 @@ void open_core()
                     /*
                     for(j=0; j<TW_WRITE_COMMAND_LEN; j++)
                     {
-                        applog(LOG_DEBUG,"data[%d] = 0x%x\n", j, data[i]);
+                        // applog(LOG_DEBUG,"data[%d] = 0x%x\n", j, data[i]);
                     }
                     */
 
@@ -3097,7 +3172,7 @@ void open_core()
                         {
                             buf[j] = work_id++;
                         }
-                        //applog(LOG_DEBUG,"buf[%d] = 0x%x\n", j, buf[i]);
+                        //// applog(LOG_DEBUG,"buf[%d] = 0x%x\n", j, buf[i]);
                     }
 
                     set_TW_write_command(buf);
@@ -3148,9 +3223,9 @@ void open_core()
                 set_BC_write_command(value);
                 cgsleep_ms(10);
 
-                for(m=0; m<BM1385_CORE_NUM + 14; m++)
+                for(m=0; m < BM1385_CORE_NUM + 14; m++) // BM1385_CORE_NUM is defined atm nowhere, I will define it on driver h. to 50
                 {
-                    //applog(LOG_DEBUG,"%s: m = %d\n", __FUNCTION__, m);
+                    //// applog(LOG_DEBUG,"%s: m = %d\n", __FUNCTION__, m);
                     do
                     {
                         work_fifo_ready = get_buffer_space();
@@ -3160,13 +3235,13 @@ void open_core()
                         }
                         else    //work fifo is full, wait for 50ms
                         {
-                            //applog(LOG_DEBUG,"%s: chain%d work fifo not ready: 0x%x\n", __FUNCTION__, i, work_fifo_ready);
+                            //// applog(LOG_DEBUG,"%s: chain%d work fifo not ready: 0x%x\n", __FUNCTION__, i, work_fifo_ready);
                             cgsleep_ms(10);
                         }
                     }
                     while(1);
 
-                    if(m==0)    //new block
+                    if(m == 0)    //new block
                     {
                         data[0] = NEW_BLOCK_MARKER;
                     }
@@ -3177,14 +3252,14 @@ void open_core()
 
                     data[1] = i | 0x80; //set chain id and enable it
 
-                    if(m==0)
+                    if(m == 0)
                     {
                         ret = get_BC_write_command();   //disable null work
                         ret &= ~BC_COMMAND_EN_NULL_WORK;
                         set_BC_write_command(ret);
                     }
 
-                    if(m==BM1385_CORE_NUM + 14 - 1)
+                    if(m == BM1385_CORE_NUM + 14 - 1)
                     {
                         ret = get_BC_write_command();   //enable null work
                         ret |= BC_COMMAND_EN_NULL_WORK;
@@ -3296,11 +3371,11 @@ void get_nonce_and_register(void)
         read_loop = 0;
 
         nonce_number = get_nonce_number_in_fifo() & MAX_NONCE_NUMBER_IN_FIFO;
-        //applog(LOG_DEBUG,"%s: nonce_number = %d\n", __FUNCTION__, nonce_number);
+        //// applog(LOG_DEBUG,"%s: nonce_number = %d\n", __FUNCTION__, nonce_number);
         if(nonce_number)
         {
             read_loop = nonce_number;
-            applog(LOG_DEBUG,"%s: read_loop = %d\n", __FUNCTION__, read_loop);
+            // applog(LOG_DEBUG,"%s: read_loop = %d\n", __FUNCTION__, read_loop);
 
             for(j=0; j<read_loop; j++)
             {
@@ -3328,18 +3403,18 @@ void get_nonce_and_register(void)
                                 nonce_read_out.nonce_buffer[nonce_read_out.p_wr].midstate[m]  = *((unsigned char *)data_addr + MIDSTATE_OFFSET + m);
                             }
 
-                            //applog(LOG_DEBUG,"%s: buf[0] = 0x%x\n", __FUNCTION__, buf[0]);
-                            //applog(LOG_DEBUG,"%s: work_id = 0x%x\n", __FUNCTION__, work_id);
-                            //applog(LOG_DEBUG,"%s: nonce2_jobid_address = 0x%x\n", __FUNCTION__, nonce2_jobid_address);
-                            //applog(LOG_DEBUG,"%s: data_addr = 0x%x\n", __FUNCTION__, data_addr);
-                            //applog(LOG_DEBUG,"%s: nonce3 = 0x%x\n", __FUNCTION__, nonce_read_out.nonce_buffer[nonce_read_out.p_wr].nonce3);
-                            //applog(LOG_DEBUG,"%s: job_id = 0x%x\n", __FUNCTION__, nonce_read_out.nonce_buffer[nonce_read_out.p_wr].job_id);
-                            //applog(LOG_DEBUG,"%s: header_version = 0x%x\n", __FUNCTION__, nonce_read_out.nonce_buffer[nonce_read_out.p_wr].header_version);
-                            //applog(LOG_DEBUG,"%s: nonce2 = 0x%x\n", __FUNCTION__, nonce_read_out.nonce_buffer[nonce_read_out.p_wr].nonce2);
+                            //// applog(LOG_DEBUG,"%s: buf[0] = 0x%x\n", __FUNCTION__, buf[0]);
+                            //// applog(LOG_DEBUG,"%s: work_id = 0x%x\n", __FUNCTION__, work_id);
+                            //// applog(LOG_DEBUG,"%s: nonce2_jobid_address = 0x%x\n", __FUNCTION__, nonce2_jobid_address);
+                            //// applog(LOG_DEBUG,"%s: data_addr = 0x%x\n", __FUNCTION__, data_addr);
+                            //// applog(LOG_DEBUG,"%s: nonce3 = 0x%x\n", __FUNCTION__, nonce_read_out.nonce_buffer[nonce_read_out.p_wr].nonce3);
+                            //// applog(LOG_DEBUG,"%s: job_id = 0x%x\n", __FUNCTION__, nonce_read_out.nonce_buffer[nonce_read_out.p_wr].job_id);
+                            //// applog(LOG_DEBUG,"%s: header_version = 0x%x\n", __FUNCTION__, nonce_read_out.nonce_buffer[nonce_read_out.p_wr].header_version);
+                            //// applog(LOG_DEBUG,"%s: nonce2 = 0x%x\n", __FUNCTION__, nonce_read_out.nonce_buffer[nonce_read_out.p_wr].nonce2);
 
                             //buf_hex = bin2hex(nonce_read_out.nonce_buffer[nonce_read_out.p_wr].midstate,32);
 
-                            //applog(LOG_DEBUG,"%s: midstate: %s\n", __FUNCTION__, buf_hex);
+                            //// applog(LOG_DEBUG,"%s: midstate: %s\n", __FUNCTION__, buf_hex);
 
                             //free(buf_hex);
 
@@ -3419,23 +3494,24 @@ int bitmain_c5_init(struct init_config config)
 
     if(config_parameter.token_type != INIT_CONFIG_TYPE)
     {
-        applog(LOG_DEBUG,"%s: config_parameter.token_type != 0x%x, it is 0x%x\n", __FUNCTION__, INIT_CONFIG_TYPE, config_parameter.token_type);
+        // applog(LOG_DEBUG,"%s: config_parameter.token_type != 0x%x, it is 0x%x\n", __FUNCTION__, INIT_CONFIG_TYPE, config_parameter.token_type);
         return -1;
     }
 
     crc = CRC16((uint8_t*)(&config_parameter), sizeof(struct init_config) - sizeof(uint16_t));
     if(crc != config_parameter.crc)
     {
-        applog(LOG_DEBUG,"%s: config_parameter.crc = 0x%x, but we calculate it as 0x%x\n", __FUNCTION__, config_parameter.crc, crc);
+        // applog(LOG_DEBUG,"%s: config_parameter.crc = 0x%x, but we calculate it as 0x%x\n", __FUNCTION__, config_parameter.crc, crc);
         return -2;
     }
 
     //malloc nonce_read_out
 #if 0
     nonce_read_out = malloc(sizeof(struct nonce_buf));
+
     if(!nonce_read_out)
     {
-        applog(LOG_DEBUG,"%s: malloc nonce_read_out failed\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: malloc nonce_read_out failed\n", __FUNCTION__);
         return -3;
     }
     else
@@ -3446,9 +3522,10 @@ int bitmain_c5_init(struct init_config config)
 
     //malloc register value buffer
     reg_value_buf = malloc(sizeof(struct reg_buf));
+
     if(!reg_value_buf)
     {
-        applog(LOG_DEBUG,"%s: malloc reg_value_buf failed\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: malloc reg_value_buf failed\n", __FUNCTION__);
         return -4;
     }
     else
@@ -3456,11 +3533,14 @@ int bitmain_c5_init(struct init_config config)
         memset(reg_value_buf, 0, sizeof(struct reg_buf));
         mutex_init(&reg_value_buf.spinlock);
     }
+
 #endif
+
     read_nonce_reg_id = calloc(1,sizeof(struct thr_info));
+
     if(thr_info_create(read_nonce_reg_id, NULL, get_nonce_and_register, read_nonce_reg_id))
     {
-        applog(LOG_DEBUG,"%s: create thread for get nonce and register from FPGA failed\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: create thread for get nonce and register from FPGA failed\n", __FUNCTION__);
         return -5;
     }
 
@@ -3478,27 +3558,34 @@ int bitmain_c5_init(struct init_config config)
             cgsleep_ms(30);
         }
     }
+
     set_nonce2_and_job_id_store_address(PHY_MEM_NONCE2_JOBID_ADDRESS);
     set_job_start_address(PHY_MEM_JOB_START_ADDRESS_1);
     //check chain
     check_chain();
 
     char * buf_hex = NULL;
-    int board_num = 0;
+    int board_num  = 0;
+
     for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
     {
         if(dev->chain_exist[i] == 1)
         {
             pthread_mutex_lock(&iic_mutex);
             get_hash_board_id_number(i,hash_board_id[i]);
+
             buf_hex = bin2hex(hash_board_id[i],12);
+
             sprintf(hash_board_id_string + (board_num*id_string_len),"{\"ID\":\"%s\"},",buf_hex);
             board_num++;
             free(buf_hex);
+
             buf_hex = NULL;
+
             pthread_mutex_unlock(&iic_mutex);
         }
     }
+
     hash_board_id_string[board_num*id_string_len - 1] = '\0';
 
     for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
@@ -3516,6 +3603,7 @@ int bitmain_c5_init(struct init_config config)
 #if 0
     de_voltage = opt_bitmain_c5_voltage;
     cgsleep_ms(100);
+
     for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
     {
         if(dev->chain_exist[i] == 1)
@@ -3525,7 +3613,9 @@ int bitmain_c5_init(struct init_config config)
             pthread_mutex_unlock(&iic_mutex);
         }
     }
+
     cgsleep_ms(100);
+
     for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
     {
         if(dev->chain_exist[i] == 1)
@@ -3541,21 +3631,26 @@ int bitmain_c5_init(struct init_config config)
     }
     cgsleep_ms(100);
 #endif
+
 #if 0
     change_voltage_to_old = calloc(1,sizeof(struct thr_info));
+
     if(thr_info_create(change_voltage_to_old, NULL, change_pic_voltage_old, change_voltage_to_old))
     {
-        applog(LOG_DEBUG,"%s: create thread error for pic_heart_beat_func\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: create thread error for pic_heart_beat_func\n", __FUNCTION__);
         return -6;
     }
     pthread_detach(change_voltage_to_old->pth);
 #endif
+
     pic_heart_beat = calloc(1,sizeof(struct thr_info));
+
     if(thr_info_create(pic_heart_beat, NULL, pic_heart_beat_func, pic_heart_beat))
     {
-        applog(LOG_DEBUG,"%s: create thread error for pic_heart_beat_func\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: create thread error for pic_heart_beat_func\n", __FUNCTION__);
         return -6;
     }
+
     pthread_detach(pic_heart_beat->pth);
 
     for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
@@ -3580,7 +3675,9 @@ int bitmain_c5_init(struct init_config config)
     }
 
     if(opt_multi_version)
+    {
         set_dhash_acc_control(get_dhash_acc_control() & (~OPERATION_MODE) | VIL_MODE | VIL_MIDSTATE_NUMBER(opt_multi_version) & (~NEW_BLOCK) & (~RUN_BIT));
+    }
 
     cgsleep_ms(10);
     //check ASIC number for every chain
@@ -3611,7 +3708,7 @@ int bitmain_c5_init(struct init_config config)
     //check who control fan
     dev->fan_eft = config_parameter.fan_eft;
     dev->fan_pwm= config_parameter.fan_pwm_percent;
-    applog(LOG_DEBUG,"%s: fan_eft : %d  fan_pwm : %d\n", __FUNCTION__,dev->fan_eft,dev->fan_pwm);
+    // applog(LOG_DEBUG,"%s: fan_eft : %d  fan_pwm : %d\n", __FUNCTION__,dev->fan_eft,dev->fan_pwm);
     if(config_parameter.fan_eft)
     {
         if((config_parameter.fan_pwm_percent >= 0) && (config_parameter.fan_pwm_percent <= 100))
@@ -3634,7 +3731,7 @@ int bitmain_c5_init(struct init_config config)
         if(config_parameter.timeout_data_integer == 0 && config_parameter.timeout_data_fractions == 0)  //driver calculate out timeout value
         {
             dev->timeout = 0x1000000 / calculate_core_number(dev->corenum) * dev->addrInterval / (dev->frequency) * 90 / 100;
-            applog(LOG_DEBUG,"dev->timeout = %d\n", dev->timeout);
+            // applog(LOG_DEBUG,"dev->timeout = %d\n", dev->timeout);
         }
         else
         {
@@ -3682,20 +3779,28 @@ int bitmain_c5_init(struct init_config config)
         if(dev->chain_exist[i] == 1 && dev->chain_asic_num[i] == CHAIN_ASIC_NUM)
         {
             set_frequency_with_addr(dev->frequency + ADD_FREQ1,0,0x54,i);
+
             //set_frequency_with_addr(dev->frequency + ADD_FREQ1,0,0x58,i);
             //set_frequency_with_addr(dev->frequency + ADD_FREQ1,0,0x5c,i);
+
             set_frequency_with_addr(dev->frequency + ADD_FREQ,0,0x60,i);
+
             //set_frequency_with_addr(dev->frequency + ADD_FREQ,0,0x64,i);
             //set_frequency_with_addr(dev->frequency + ADD_FREQ,0,0x68,i);
+
             set_frequency_with_addr(dev->frequency + ADD_FREQ,0,0x6c,i);
+
             //set_frequency_with_addr(dev->frequency + ADD_FREQ,0,0x70,i);
             //set_frequency_with_addr(dev->frequency + ADD_FREQ,0,0x74,i);
+
             set_frequency_with_addr(dev->frequency + ADD_FREQ1,0,0x78,i);
+
             //set_frequency_with_addr(dev->frequency + ADD_FREQ1,0,0x7c,i);
             //set_frequency_with_addr(dev->frequency + ADD_FREQ1,0,0x80,i);
         }
     }
 #endif
+
     //set big timeout value for open core
     //set_time_out_control((MAX_TIMEOUT_VALUE - 100) | TIME_OUT_VALID);
     set_time_out_control(0xc350 | TIME_OUT_VALID);
@@ -3710,7 +3815,7 @@ int bitmain_c5_init(struct init_config config)
     check_system_work_id = calloc(1,sizeof(struct thr_info));
     if(thr_info_create(check_system_work_id, NULL, check_system_work, check_system_work_id))
     {
-        applog(LOG_DEBUG,"%s: create thread for check system\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: create thread for check system\n", __FUNCTION__);
         return -6;
     }
     pthread_detach(check_system_work_id->pth);
@@ -3719,7 +3824,7 @@ int bitmain_c5_init(struct init_config config)
     read_hash_rate = calloc(1,sizeof(struct thr_info));
     if(thr_info_create(read_hash_rate, NULL, get_hash_rate, read_hash_rate))
     {
-        applog(LOG_DEBUG,"%s: create thread for get nonce and register from FPGA failed\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: create thread for get nonce and register from FPGA failed\n", __FUNCTION__);
         return -5;
     }
 
@@ -3730,7 +3835,7 @@ int bitmain_c5_init(struct init_config config)
     read_temp_id = calloc(1,sizeof(struct thr_info));
     if(thr_info_create(read_temp_id, NULL, read_temp_func, read_temp_id))
     {
-        applog(LOG_DEBUG,"%s: create thread for read temp\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: create thread for read temp\n", __FUNCTION__);
         return -7;
     }
     pthread_detach(read_temp_id->pth);
@@ -3840,7 +3945,7 @@ static void show_status(int if_quit)
     while((unsigned int)get_dhash_acc_control() & RUN_BIT)
     {
         cgsleep_ms(1);
-        applog(LOG_DEBUG,"%s: run bit is 1 after set it to 0", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: run bit is 1 after set it to 0", __FUNCTION__);
     }
 
     buf_hex = bin2hex((unsigned char *)dev->current_job_start_address,c_coinbase_padding);
@@ -3897,21 +4002,21 @@ int send_job(unsigned char *buf)
     int times = 0;
     struct part_of_job *part_job = NULL;
 
-    applog(LOG_DEBUG,"--- %s\n", __FUNCTION__);
+    // applog(LOG_DEBUG,"--- %s\n", __FUNCTION__);
 
     if(*(buf + 0) != SEND_JOB_TYPE)
     {
-        applog(LOG_DEBUG,"%s: SEND_JOB_TYPE is wrong : 0x%x\n", __FUNCTION__, *(buf + 0));
+        // applog(LOG_DEBUG,"%s: SEND_JOB_TYPE is wrong : 0x%x\n", __FUNCTION__, *(buf + 0));
         return -1;
     }
 
     len = *((unsigned int *)buf + 4/sizeof(int));
-    applog(LOG_DEBUG,"%s: len = 0x%x\n", __FUNCTION__, len);
+    // applog(LOG_DEBUG,"%s: len = 0x%x\n", __FUNCTION__, len);
 
     temp_buf = malloc(len + 8*sizeof(unsigned char));
     if(!temp_buf)
     {
-        applog(LOG_DEBUG,"%s: malloc buffer failed.\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: malloc buffer failed.\n", __FUNCTION__);
         return -2;
     }
     else
@@ -3932,7 +4037,7 @@ int send_job(unsigned char *buf)
     }
     else
     {
-        applog(LOG_DEBUG,"%s: dev->current_job_start_address = 0x%x, but job_start_address_1 = 0x%x, job_start_address_2 = 0x%x\n", __FUNCTION__, dev->current_job_start_address, job_start_address_1, job_start_address_2);
+        // applog(LOG_DEBUG,"%s: dev->current_job_start_address = 0x%x, but job_start_address_1 = 0x%x, job_start_address_2 = 0x%x\n", __FUNCTION__, dev->current_job_start_address, job_start_address_1, job_start_address_2);
         return -3;
     }
 
@@ -3949,12 +4054,12 @@ int send_job(unsigned char *buf)
     coinbase_padding = malloc(coinbase_padding_len);
     if(!coinbase_padding)
     {
-        applog(LOG_DEBUG,"%s: malloc coinbase_padding failed.\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: malloc coinbase_padding failed.\n", __FUNCTION__);
         return -4;
     }
     else
     {
-        applog(LOG_DEBUG,"%s: coinbase_padding = 0x%x", __FUNCTION__, (unsigned int)coinbase_padding);
+        // applog(LOG_DEBUG,"%s: coinbase_padding = 0x%x", __FUNCTION__, (unsigned int)coinbase_padding);
     }
 
     if(part_job->merkles_num)
@@ -3962,16 +4067,16 @@ int send_job(unsigned char *buf)
         merkles_bin = malloc(part_job->merkles_num * MERKLE_BIN_LEN);
         if(!merkles_bin)
         {
-            applog(LOG_DEBUG,"%s: malloc merkles_bin failed.\n", __FUNCTION__);
+            // applog(LOG_DEBUG,"%s: malloc merkles_bin failed.\n", __FUNCTION__);
             return -5;
         }
         else
         {
-            applog(LOG_DEBUG,"%s: merkles_bin = 0x%x", __FUNCTION__, (unsigned int)merkles_bin);
+            // applog(LOG_DEBUG,"%s: merkles_bin = 0x%x", __FUNCTION__, (unsigned int)merkles_bin);
         }
     }
 
-    //applog(LOG_DEBUG,"%s: copy coinbase into memory ...\n", __FUNCTION__);
+    //// applog(LOG_DEBUG,"%s: copy coinbase into memory ...\n", __FUNCTION__);
     memset(coinbase_padding, 0, coinbase_padding_len);
     memcpy(coinbase_padding, buf + sizeof(struct part_of_job), part_job->coinbase_len);
     *(coinbase_padding + part_job->coinbase_len) = 0x80;
@@ -3983,7 +4088,7 @@ int send_job(unsigned char *buf)
     for(i=0; i<coinbase_padding_len; i++)
     {
         *((unsigned char *)dev->current_job_start_address + i) = *(coinbase_padding + i);
-        //applog(LOG_DEBUG,"%s: coinbase_padding_in_ddr[%d] = 0x%x", __FUNCTION__, i, *(((unsigned char *)dev->current_job_start_address + i)));
+        //// applog(LOG_DEBUG,"%s: coinbase_padding_in_ddr[%d] = 0x%x", __FUNCTION__, i, *(((unsigned char *)dev->current_job_start_address + i)));
     }
 
     /* check coinbase & padding in ddr */
@@ -3991,28 +4096,28 @@ int send_job(unsigned char *buf)
     {
         if(*((unsigned char *)dev->current_job_start_address + i) != *(coinbase_padding + i))
         {
-            applog(LOG_DEBUG,"%s: coinbase_padding_in_ddr[%d] = 0x%x, but *(coinbase_padding + %d) = 0x%x", __FUNCTION__, i, *(((unsigned char *)dev->current_job_start_address + i)), i, *(coinbase_padding + i));
+            // applog(LOG_DEBUG,"%s: coinbase_padding_in_ddr[%d] = 0x%x, but *(coinbase_padding + %d) = 0x%x", __FUNCTION__, i, *(((unsigned char *)dev->current_job_start_address + i)), i, *(coinbase_padding + i));
         }
     }
     l_merkles_num = c_merkles_num;
     c_merkles_num = part_job->merkles_num;
     if(part_job->merkles_num)
     {
-        applog(LOG_DEBUG,"%s: copy merkle bin into memory ...\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: copy merkle bin into memory ...\n", __FUNCTION__);
         memset(merkles_bin, 0, part_job->merkles_num * MERKLE_BIN_LEN);
         memcpy(merkles_bin, buf + sizeof(struct part_of_job) + part_job->coinbase_len , part_job->merkles_num * MERKLE_BIN_LEN);
 
         for(i=0; i<(part_job->merkles_num * MERKLE_BIN_LEN); i++)
         {
             *((unsigned char *)dev->current_job_start_address + coinbase_padding_len + i) = *(merkles_bin + i);
-            //applog(LOG_DEBUG,"%s: merkles_in_ddr[%d] = 0x%x", __FUNCTION__, i, *(((unsigned char *)dev->current_job_start_address + coinbase_padding_len + i)));
+            //// applog(LOG_DEBUG,"%s: merkles_in_ddr[%d] = 0x%x", __FUNCTION__, i, *(((unsigned char *)dev->current_job_start_address + coinbase_padding_len + i)));
         }
 
         for(i=0; i<(part_job->merkles_num * MERKLE_BIN_LEN); i++)
         {
             if(*((unsigned char *)dev->current_job_start_address + coinbase_padding_len + i) != *(merkles_bin + i))
             {
-                applog(LOG_DEBUG,"%s: merkles_in_ddr[%d] = 0x%x, but *(merkles_bin + %d) =0x%x", __FUNCTION__, i, *(((unsigned char *)dev->current_job_start_address + coinbase_padding_len + i)), i, *(merkles_bin + i));
+                // applog(LOG_DEBUG,"%s: merkles_in_ddr[%d] = 0x%x, but *(merkles_bin + %d) =0x%x", __FUNCTION__, i, *(((unsigned char *)dev->current_job_start_address + coinbase_padding_len + i)), i, *(merkles_bin + i));
             }
         }
     }
@@ -4023,7 +4128,7 @@ int send_job(unsigned char *buf)
     while((unsigned int)get_dhash_acc_control() & RUN_BIT)
     {
         cgsleep_ms(1);
-        applog(LOG_DEBUG,"%s: run bit is 1 after set it to 0\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: run bit is 1 after set it to 0\n", __FUNCTION__);
         times++;
     }
     cgsleep_ms(1);
@@ -4033,12 +4138,12 @@ int send_job(unsigned char *buf)
     if(dev->current_job_start_address == job_start_address_1)
     {
         set_job_start_address(PHY_MEM_JOB_START_ADDRESS_1);
-        //applog(LOG_DEBUG,"%s: dev->current_job_start_address = 0x%x\n", __FUNCTION__, (unsigned int)job_start_address_2);
+        //// applog(LOG_DEBUG,"%s: dev->current_job_start_address = 0x%x\n", __FUNCTION__, (unsigned int)job_start_address_2);
     }
     else if(dev->current_job_start_address == job_start_address_2)
     {
         set_job_start_address(PHY_MEM_JOB_START_ADDRESS_2);
-        //applog(LOG_DEBUG,"%s: dev->current_job_start_address = 0x%x\n", __FUNCTION__, (unsigned int)job_start_address_1);
+        //// applog(LOG_DEBUG,"%s: dev->current_job_start_address = 0x%x\n", __FUNCTION__, (unsigned int)job_start_address_1);
     }
 
     if(part_job->asic_diff_valid)
@@ -4085,6 +4190,7 @@ int send_job(unsigned char *buf)
         set_nonce_fifo_interrupt(get_nonce_fifo_interrupt() | FLUSH_NONCE3_FIFO);
         gBegin_get_nonce = true;
     }
+
 #if 1
     //start FPGA generating works
     if(part_job->new_block)
@@ -4116,7 +4222,7 @@ int send_job(unsigned char *buf)
         free((unsigned char *)merkles_bin);
     }
 
-    applog(LOG_DEBUG,"--- %s end\n", __FUNCTION__);
+    // applog(LOG_DEBUG,"--- %s end\n", __FUNCTION__);
     cgtime(&tv_send_job);
     return 0;
 }
@@ -4156,15 +4262,15 @@ static void copy_pool_stratum(struct pool *pool_stratum, struct pool *pool)
             memcpy(pool_stratum->swork.merkle_bin[i], pool->swork.merkle_bin[i], 32);
         }
     }
-    pool_stratum->pool_no = pool->pool_no;
-    pool_stratum->sdiff = pool->sdiff;
-    pool_stratum->coinbase_len = pool->coinbase_len;
-    pool_stratum->nonce2_offset = pool->nonce2_offset;
-    pool_stratum->n2size = pool->n2size;
-    pool_stratum->merkles = pool->merkles;
 
-    pool_stratum->swork.job_id = strdup(pool->swork.job_id);
-    pool_stratum->nonce1 = strdup(pool->nonce1);
+    pool_stratum->pool_no       = pool->pool_no;
+    pool_stratum->sdiff         = pool->sdiff;
+    pool_stratum->coinbase_len  = pool->coinbase_len;
+    pool_stratum->nonce2_offset = pool->nonce2_offset;
+    pool_stratum->n2size        = pool->n2size;
+    pool_stratum->merkles       = pool->merkles;
+    pool_stratum->swork.job_id  = strdup(pool->swork.job_id);
+    pool_stratum->nonce1        = strdup(pool->nonce1);
 
     memcpy(pool_stratum->ntime, pool->ntime, sizeof(pool_stratum->ntime));
     memcpy(pool_stratum->header_bin, pool->header_bin, sizeof(pool_stratum->header_bin));
@@ -4178,16 +4284,19 @@ static void noblock_socket(int fd)
     fcntl(fd, F_SETFL, O_NONBLOCK | flags);
 }
 
+
 static void block_socket(int fd)
 {
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 }
 
+
 static bool sock_connecting(void)
 {
     return errno == EINPROGRESS;
 }
+
 
 static int get_mac(char * device,char **mac)
 {
@@ -4195,23 +4304,28 @@ static int get_mac(char * device,char **mac)
     int sock = 0;
 
     sock = socket(AF_INET,SOCK_STREAM,0);
+
     if(sock < 0)
     {
         perror("error sock");
         return 2;
     }
+
     strcpy(ifreq.ifr_name,device);
+
     if(ioctl(sock,SIOCGIFHWADDR,&ifreq) < 0)
     {
         perror("error ioctl");
         close(sock);
         return 3;
     }
+
     int i = 0;
     for(i = 0; i < 6; i++)
     {
         sprintf(*mac+3*i, "%02X:", (unsigned char)ifreq.ifr_hwaddr.sa_data[i]);
     }
+
     (*mac)[strlen(*mac) - 1] = 0;
     close(sock);
     return 0;
@@ -4233,28 +4347,35 @@ static bool setup_send_mac_socket(char * s)
     {
         return false;
     }
+
     for (p = servinfo; p != NULL; p = p->ai_next)
     {
         sockd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+
         if (sockd == -1)
         {
             continue;
         }
+
         noblock_socket(sockd);
+
         if (connect(sockd, p->ai_addr, p->ai_addrlen) == -1)
         {
             struct timeval tv_timeout = {10, 0};
             int selret;
             fd_set rw;
+
             if (!sock_connecting())
             {
                 close(sockd);
                 continue;
             }
+
             retry:
             FD_ZERO(&rw);
             FD_SET(sockd, &rw);
             selret = select(sockd + 1, NULL, &rw, NULL, &tv_timeout);
+
             if  (selret > 0 && FD_ISSET(sockd, &rw))
             {
                 socklen_t len;
@@ -4262,14 +4383,19 @@ static bool setup_send_mac_socket(char * s)
 
                 len = sizeof(err);
                 n = getsockopt(sockd, SOL_SOCKET, SO_ERROR, (void *)&err, &len);
+
                 if (!n && !err)
                 {
                     block_socket(sockd);
                     break;
                 }
             }
+
             if (selret < 0 && interrupted())
+            {
                 goto retry;
+            }
+
             close(sockd);
             continue;
         }
@@ -4289,16 +4415,21 @@ static bool setup_send_mac_socket(char * s)
     block_socket(sockd);
     bool if_stop = false;
 
-    int nNetTimeout=10;
+    int nNetTimeout = 10;
+
     setsockopt(sockd,SOL_SOCKET,SO_SNDTIMEO,(char *)&nNetTimeout,sizeof(int));
     setsockopt(sockd,SOL_SOCKET,SO_RCVTIMEO,(char *)&nNetTimeout,sizeof(int));
+
     send_bytes = send(sockd,s,strlen(s),0);
+
     if (send_bytes != strlen(s))
     {
         if_stop = false;
     }
+
     memset(rec, 0, 1024);
     recv_bytes = recv(sockd, rec, 1024, 0);
+
     if (recv_bytes > 0)
     {
         if(strstr(rec,"false"))
@@ -4310,28 +4441,33 @@ static bool setup_send_mac_socket(char * s)
     return if_stop;
 }
 
-void send_mac()
+void send_mac()      // send my mac to bitmain! Great! To controll my miner if they want!
 {
     char s[1024];
+
     static int id = 0;
-    int number = 0;
-    mac = (char *)malloc(sizeof(char)*32);
+    int number    = 0;
+    mac           = (char *)malloc(sizeof(char)*32);
+
     get_mac("eth0",&mac);
     while(need_send)
     {
         id++;
-        snprintf(s, sizeof(s),
-                 "{\"ctrl_board\":\"%s\",\"id\":\"%d\",\"hashboard\":[%s]}",mac,id,hash_board_id_string);
+        snprintf(s, sizeof(s), "{\"ctrl_board\":\"%s\",\"id\":\"%d\",\"hashboard\":[%s]}",mac,id,hash_board_id_string);
+
         stop_mining = setup_send_mac_socket(s);
+
         if(stop_mining)
         {
             applog(LOG_NOTICE,"Stop mining!!!");
             break;
         }
+
         srand((unsigned) time(NULL));
         number = rand() % 600 + 60;
         sleep(number);
     }
+
     free(mac);
 }
 
@@ -4389,7 +4525,7 @@ static bool bitmain_c5_prepare(struct thr_info *thr)
     send_mac_thr = calloc(1,sizeof(struct thr_info));
     if(thr_info_create(send_mac_thr, NULL, send_mac, send_mac_thr))
     {
-        applog(LOG_DEBUG,"%s: create thread for send mac\n", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: create thread for send mac\n", __FUNCTION__);
     }
 
     return true;
@@ -4454,7 +4590,7 @@ static uint64_t hashtest_submit(struct thr_info *thr, struct work *work, uint32_
             pool_diff_bit++;
         }
         pool_diff_bit--;
-        applog(LOG_DEBUG,"%s: pool_diff:%d work_diff:%d pool_diff_bit:%d ...\n", __FUNCTION__,pool_diff,work->sdiff,pool_diff_bit);
+        // applog(LOG_DEBUG,"%s: pool_diff:%d work_diff:%d pool_diff_bit:%d ...\n", __FUNCTION__,pool_diff,work->sdiff,pool_diff_bit);
     }
 
     if(net_diff != (uint64_t)current_diff)
@@ -4468,7 +4604,7 @@ static uint64_t hashtest_submit(struct thr_info *thr, struct work *work, uint32_
             net_diff_bit++;
         }
         net_diff_bit--;
-        applog(LOG_DEBUG,"%s:net_diff:%d current_diff:%d net_diff_bit %d ...\n", __FUNCTION__,net_diff,current_diff,net_diff_bit);
+        // applog(LOG_DEBUG,"%s:net_diff:%d current_diff:%d net_diff_bit %d ...\n", __FUNCTION__,net_diff,current_diff,net_diff_bit);
     }
 
     uint32_t *hash2_32 = (uint32_t *)hash1;
@@ -4506,7 +4642,7 @@ static uint64_t hashtest_submit(struct thr_info *thr, struct work *work, uint32_
         }
         //inc_hw_errors_with_diff(thr,(0x01UL << DEVICE_DIFF));
         //dev->chain_hw[chain_id]+=(0x01UL << DEVICE_DIFF);
-        applog(LOG_DEBUG,"%s: HASH2_32[7] != 0", __FUNCTION__);
+        // applog(LOG_DEBUG,"%s: HASH2_32[7] != 0", __FUNCTION__);
         return 0;
     }
     for(i=0; i < 7; i++)
@@ -4517,7 +4653,7 @@ static uint64_t hashtest_submit(struct thr_info *thr, struct work *work, uint32_
     if(i >= pool_diff_bit/32)
     {
         which_asic_nonce = (nonce >> (24 + dev->check_bit)) & 0xff;
-        applog(LOG_DEBUG,"%s: chain %d which_asic_nonce %d ", __FUNCTION__, chain_id, which_asic_nonce);
+        // applog(LOG_DEBUG,"%s: chain %d which_asic_nonce %d ", __FUNCTION__, chain_id, which_asic_nonce);
         dev->chain_asic_nonce[chain_id][which_asic_nonce]++;
         if(be32toh(hash2_32[6 - pool_diff_bit/32]) < ((uint32_t)0xffffffff >> (pool_diff_bit%32)))
         {
@@ -4577,7 +4713,7 @@ static int64_t bitmain_scanhash(struct thr_info *thr)
 
             midstate[(7-(i/4))*4 + (i%4)] = nonce_read_out.nonce_buffer[nonce_read_out.p_rd].midstate[i];
         }
-        applog(LOG_DEBUG,"%s: job_id:0x%x   work_id:0x%x   nonce2:0x%llx   nonce3:0x%x   version:0x%x\n", __FUNCTION__,job_id, work_id,nonce2, nonce3,version);
+        // applog(LOG_DEBUG,"%s: job_id:0x%x   work_id:0x%x   nonce2:0x%llx   nonce3:0x%x   version:0x%x\n", __FUNCTION__,job_id, work_id,nonce2, nonce3,version);
         struct work * work;
 
         struct pool *pool, *c_pool;
@@ -4611,10 +4747,10 @@ static int64_t bitmain_scanhash(struct thr_info *thr)
             continue;
         }
 
-        applog(LOG_DEBUG,"%s: Chain ID J%d ...\n", __FUNCTION__, chain_id + 1);
+        // applog(LOG_DEBUG,"%s: Chain ID J%d ...\n", __FUNCTION__, chain_id + 1);
         if( (given_id -2)> job_id && given_id < job_id)
         {
-            applog(LOG_DEBUG,"%s: job_id error ...\n", __FUNCTION__);
+            // applog(LOG_DEBUG,"%s: job_id error ...\n", __FUNCTION__);
             if(dev->chain_exist[chain_id] == 1)
             {
                 inc_hw_errors(thr);
@@ -4623,7 +4759,7 @@ static int64_t bitmain_scanhash(struct thr_info *thr)
             continue;
         }
 
-        applog(LOG_DEBUG,"%s: given_id:%d job_id:%d switch:%d  ...\n", __FUNCTION__,given_id,job_id,given_id - job_id);
+        // applog(LOG_DEBUG,"%s: given_id:%d job_id:%d switch:%d  ...\n", __FUNCTION__,given_id,job_id,given_id - job_id);
 
         switch (given_id - job_id)
         {
@@ -4637,7 +4773,7 @@ static int64_t bitmain_scanhash(struct thr_info *thr)
                 pool = pool_stratum2;
                 break;
             default:
-                applog(LOG_DEBUG,"%s: job_id non't found ...\n", __FUNCTION__);
+                // applog(LOG_DEBUG,"%s: job_id non't found ...\n", __FUNCTION__);
                 if(dev->chain_exist[chain_id] == 1)
                 {
                     inc_hw_errors(thr);
@@ -4655,7 +4791,7 @@ static int64_t bitmain_scanhash(struct thr_info *thr)
     cgsleep_ms(1);
     if(h != 0)
     {
-        applog(LOG_DEBUG,"%s: hashes %u ...\n", __FUNCTION__,h * 0xffffffffull);
+        // applog(LOG_DEBUG,"%s: hashes %u ...\n", __FUNCTION__,h * 0xffffffffull);
     }
     h = h * 0xffffffffull;
 }
@@ -4675,7 +4811,8 @@ static void bitmain_c5_update(struct cgpu_info *bitmain_c5)
     struct thr_info *thr = bitmain_c5->thr[0];
     struct work *work;
     struct pool *pool;
-    int i, count = 0;
+    int i; 
+    int count = 0;
     mutex_lock(&info->lock);
     static char *last_job = NULL;
     bool same_job = true;
@@ -4687,8 +4824,11 @@ static void bitmain_c5_update(struct cgpu_info *bitmain_c5)
     discard_work(work); /* Don't leak memory */
     /* Step 2: Protocol check */
     pool = current_pool();
+    
     if (!pool->has_stratum)
+    {
         quit(1, "Bitmain S9 has to use stratum pools");
+    }
 
     /* Step 3: Parse job to c5 formart */
     cg_wlock(&info->update_lock);
@@ -4703,19 +4843,25 @@ static void bitmain_c5_update(struct cgpu_info *bitmain_c5)
     copy_pool_stratum(&info->pool0, pool);
     info->pool0_given_id = ++given_id;
     parse_job_to_c5(&buf, pool, info->pool0_given_id);
+    
     /* Step 4: Send out buf */
     if(!status_error)
+    {
         send_job(buf);
+    }
+    
     cg_runlock(&pool->data_lock);
     cg_wunlock(&info->update_lock);
     free(buf);
     mutex_unlock(&info->lock);
 }
 
+
 static void get_bitmain_statline_before(char *buf, size_t bufsiz, struct cgpu_info *bitmain_c5)
 {
     struct bitmain_c5_info *info = bitmain_c5->device_data;
 }
+
 
 static struct api_data *bitmain_api_stats(struct cgpu_info *cgpu)
 {
@@ -4734,7 +4880,7 @@ static struct api_data *bitmain_api_stats(struct cgpu_info *cgpu)
     for(i = 0; i < BITMAIN_MAX_FAN_NUM; i++)
     {
         char fan_name[12];
-        sprintf(fan_name,"fan%d",i+1);
+        sprintf(fan_name,"fan%d",i + 1);
         root = api_add_uint(root, fan_name, &(dev->fan_speed_value[i]), copy_data);
     }
 
@@ -4743,7 +4889,7 @@ static struct api_data *bitmain_api_stats(struct cgpu_info *cgpu)
     for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
     {
         char temp_name[12];
-        sprintf(temp_name,"temp%d",i+1);
+        sprintf(temp_name,"temp%d",i + 1);
         root = api_add_int16(root, temp_name, &(dev->chain_asic_temp[i][2][0]), copy_data);
     }
 
@@ -4751,7 +4897,7 @@ static struct api_data *bitmain_api_stats(struct cgpu_info *cgpu)
     for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
     {
         char temp2_name[12];
-        sprintf(temp2_name,"temp2_%d",i+1);
+        sprintf(temp2_name,"temp2_%d",i + 1);
         root = api_add_int16(root, temp2_name, &(dev->chain_asic_temp[i][2][1]), copy_data);
     }
 
@@ -4759,37 +4905,38 @@ static struct api_data *bitmain_api_stats(struct cgpu_info *cgpu)
 
     total_diff1 = total_diff_accepted + total_diff_rejected + total_diff_stale;
 
-    double hwp = (hw_errors + total_diff1) ?
-                 (double)(hw_errors) / (double)(hw_errors + total_diff1) : 0;
+    double hwp = (hw_errors + total_diff1) ? (double)(hw_errors) / (double)(hw_errors + total_diff1) : 0;
 
-    root = api_add_percent(root, "Device Hardware%", &hwp, false);
+    root = api_add_percent(root, "Device Hardware%", &hwp,       false);
     root = api_add_int(root,     "no_matching_work", &hw_errors, false);
 
     for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
     {
         char chain_name[12];
-        sprintf(chain_name,"chain_acn%d",i+1);
+        sprintf(chain_name,"chain_acn%d",i + 1);
         root = api_add_uint8(root, chain_name, &(dev->chain_asic_num[i]), copy_data);
     }
 
+    
     for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
     {
         char chain_asic_name[12];
-        sprintf(chain_asic_name,"chain_acs%d",i+1);
+        sprintf(chain_asic_name,"chain_acs%d",i + 1);
         root = api_add_string(root, chain_asic_name, dev->chain_asic_status_string[i], copy_data);
     }
 
+    
     for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
     {
         char chain_hw[16];
-        sprintf(chain_hw,"chain_hw%d",i+1);
+        sprintf(chain_hw,"chain_hw%d",i + 1);
         root = api_add_uint32(root, chain_hw, &(dev->chain_hw[i]), copy_data);
     }
 
     for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
     {
         char chain_rate[16];
-        sprintf(chain_rate,"chain_rate%d",i+1);
+        sprintf(chain_rate,"chain_rate%d",i + 1);
         root = api_add_string(root, chain_rate, &(dev->displayed_rate[i]), copy_data);
         // TODO: bug or not, test on next build: from displayed_rate[i] to &(dev->displayed_rate[i])
     }
@@ -4827,18 +4974,18 @@ static void bitmain_c5_shutdown(struct thr_info *thr)
 
 struct device_drv bitmain_c5_drv =
         {
-                .drv_id = DRIVER_bitmain_c5,
-                .dname = "Bitmain_C5",
-                .name = "BC5",
-                .drv_detect = bitmain_c5_detect, // 1x here and 1x cgminer.c
-                .thread_prepare = bitmain_c5_prepare,
-                .hash_work = hash_driver_work, // 2x here and cgminer.c
-                .scanwork = bitmain_c5_scanhash,
-                .flush_work = bitmain_c5_update,
-                .update_work = bitmain_c5_update,
-                .get_api_stats = bitmain_api_stats,
-                .reinit_device = bitmain_c5_reinit_device,
+                .drv_id              = DRIVER_bitmain_c5,
+                .dname               = "Bitmain_C5",
+                .name                = "BC5",
+                .drv_detect          = bitmain_c5_detect, // 1x here and 1x cgminer.c
+                .thread_prepare      = bitmain_c5_prepare,
+                .hash_work           = hash_driver_work, // 2x here and cgminer.c
+                .scanwork            = bitmain_c5_scanhash,
+                .flush_work          = bitmain_c5_update,
+                .update_work         = bitmain_c5_update,
+                .get_api_stats       = bitmain_api_stats,
+                .reinit_device       = bitmain_c5_reinit_device,
                 .get_statline_before = get_bitmain_statline_before,
-                .thread_shutdown = bitmain_c5_shutdown,
+                .thread_shutdown     = bitmain_c5_shutdown,
         };
 
