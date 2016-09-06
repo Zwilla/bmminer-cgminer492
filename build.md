@@ -25,6 +25,8 @@ chmod 755 /usr/bin/bmminer
 
 /etc/init.d/bmminer.sh restart
 
+sleep 3
+
 screen -r
 
 If you want to use your old bmminer, just run this

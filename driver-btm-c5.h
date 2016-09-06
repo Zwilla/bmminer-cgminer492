@@ -186,7 +186,7 @@
 #define PHY_MEM_JOB_START_ADDRESS_2		(PHY_MEM_JOB_START_ADDRESS_1 + JOB_STORE_SPACE)
 
 // macro define about miner
-#define BITMAIN_MAX_CHAIN_NUM			4               // old value = 16 but there are only 4 (0 1 3 4) the 2 is empty check the api
+#define BITMAIN_MAX_CHAIN_NUM			16               // (default:16) but there are only 4 (0 1 3 4) the 2 is empty check the api
 #define CHAIN_ASIC_NUM					63              // number of max asic chips for counting
 #define BITMAIN_MAX_FAN_NUM				4				// default = 8 set now to FPGA just can supports 8 fan but there are only 2 (0 and 3) check the api
 #define BITMAIN_DEFAULT_ASIC_NUM		64				// max support 64 ASIC on 1 HASH board
