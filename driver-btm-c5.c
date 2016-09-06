@@ -11,19 +11,13 @@
 #include <sys/mman.h>
 
 
-
-#ifndef WIN32
 #include <sys/select.h>
 #include <termios.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
-#endif
-#else
-#include "compat.h"
-#include <windows.h>
-#include <io.h>
 #endif
 
 #include <sys/ioctl.h>
@@ -1146,7 +1140,9 @@ void set_dhash_acc_control(unsigned int value)
         cgsleep_ms(2);
     }
     if (a == 0)
-        // applog(LOG_DEBUG,"%s set DHASH_ACC_CONTROL failed!",__FUNCTION__);
+    {
+         // applog(LOG_DEBUG,"%s set DHASH_ACC_CONTROL failed!",__FUNCTION__);
+    }
 }
 
 void set_TW_write_command(unsigned int *value)
@@ -4486,37 +4482,37 @@ static bool bitmain_c5_prepare(struct thr_info *thr)
 
     struct init_config c5_config =
             {
-                    .token_type = 0x51,
-                    .version = 0,
-                    .length = 26,
-                    .reset  = 1,
-                    .fan_eft = opt_bitmain_fan_ctrl,
-                    .timeout_eft = 1,
-                    .frequency_eft = 1,
-                    .voltage_eft = 1,
-                    .chain_check_time_eft  = 1,
-                    .chip_config_eft         =1,
-                    .hw_error_eft        =1,
-                    .beeper_ctrl             =1,
-                    .temp_ctrl           =1,
-                    .chain_freq_eft      =1,
-                    .reserved1           =0,
-                    .reserved2 ={0},
-                    .chain_num = 9,
-                    .asic_num = 54,
-                    .fan_pwm_percent = opt_bitmain_fan_pwm,
-                    .temperature = 80,
-                    .frequency = opt_bitmain_c5_freq,
-                    .voltage = {0x07,0x25},
-                    .chain_check_time_integer = 10,
+                    .token_type                 = 0x51,
+                    .version                    = 0,
+                    .length                     = 26,
+                    .reset                      = 1,
+                    .fan_eft                    = opt_bitmain_fan_ctrl,
+                    .timeout_eft                = 1,
+                    .frequency_eft              = 1,
+                    .voltage_eft                = 1,
+                    .chain_check_time_eft       = 1,
+                    .chip_config_eft            = 1,
+                    .hw_error_eft               = 1,
+                    .beeper_ctrl                = 1,
+                    .temp_ctrl                  = 1,
+                    .chain_freq_eft             = 1,
+                    .reserved1                  = 0,
+                    .reserved2                  = {0},
+                    .chain_num                  = 9,
+                    .asic_num                   = 54,
+                    .fan_pwm_percent            = opt_bitmain_fan_pwm,
+                    .temperature                = 90,    // (default:80)
+                    .frequency                  = opt_bitmain_c5_freq,
+                    .voltage                    = {0x07,0x25},
+                    .chain_check_time_integer   = 10,
                     .chain_check_time_fractions = 10,
-                    .timeout_data_integer = 0,
-                    .timeout_data_fractions = 0,
-                    .reg_data = 0,
-                    .chip_address = 0x04,
-                    .reg_address= 0,
-                    .chain_min_freq = 400,
-                    .chain_max_freq = 600,
+                    .timeout_data_integer       = 0,
+                    .timeout_data_fractions     = 0,
+                    .reg_data                   = 0,
+                    .chip_address               = 0x04,
+                    .reg_address                = 0,
+                    .chain_min_freq             = 400,
+                    .chain_max_freq             = 800,   // (default: 600) we set it to 800
             };
     c5_config.crc = CRC16((uint8_t *)(&c5_config), sizeof(c5_config)-2);
 

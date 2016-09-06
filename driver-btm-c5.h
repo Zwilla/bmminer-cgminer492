@@ -225,7 +225,7 @@
 #define RED_LED_DEV "/sys/class/leds/hps_led2/brightness"
 #define GREEN_LED_DEV "/sys/class/leds/hps_led0/brightness"
 #else
-#ifdef XILINX
+//#ifdef XILINX
 #define RED_LED_DEV "/sys/class/gpio/gpio37/value"
 #define GREEN_LED_DEV "/sys/class/gpio/gpio38/value"
 #endif
@@ -402,6 +402,7 @@ struct all_parameters
     unsigned char	diff;
     uint8_t			fan_eft;
     uint8_t			fan_pwm;
+    uint8_t displayed_rate[16];
 
     unsigned short int	frequency;
     char frequency_t[10];
