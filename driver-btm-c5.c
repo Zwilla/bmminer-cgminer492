@@ -75,7 +75,7 @@ int pcb_version;
 int last_temperature                  = 0;
 int temp_highest                      = 0;
 int opt_bitmain_fan_pwm               = 0;
-int opt_bitmain_c5_freq               = 600;
+int opt_bitmain_c5_freq               = 650;
 int opt_bitmain_c5_voltage            = 176;
 int ADD_FREQ                          = 0;
 int ADD_FREQ1                         = 0;

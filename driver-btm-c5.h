@@ -188,7 +188,7 @@
 // macro define about miner
 #define BITMAIN_MAX_CHAIN_NUM			16               // (default:16) but there are only 4 (0 1 3 4) the 2 is empty check the api
 #define CHAIN_ASIC_NUM					63              // number of max asic chips for counting
-#define BITMAIN_MAX_FAN_NUM				4				// default = 8 set now to FPGA just can supports 8 fan but there are only 2 (0 and 3) check the api
+#define BITMAIN_MAX_FAN_NUM				8				// default = 8 set now to FPGA just can supports 8 fan but there are only 2 (0 and 3) check the api
 #define BITMAIN_DEFAULT_ASIC_NUM		64				// max support 64 ASIC on 1 HASH board
 #define MIDSTATE_LEN					32              // MIDSTATE len = 32 Asicboost ? 2.5 Building work items
 #define DATA2_LEN						12              // 12 bytes ??
