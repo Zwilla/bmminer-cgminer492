@@ -1448,7 +1448,7 @@ static void get_plldata(int type,int freq,uint32_t * reg_data,uint16_t * reg_dat
     *vil_data = freq_pll_1385[i].vilpll;
 }
 
-void set_frequency(unsigned short int frequency)
+void set_frequency(unsigned short int frequency) // of what?
 {
     unsigned char buf[9] = {0,0,0,0,0,0,0,0,0};
     unsigned int cmd_buf[3] = {0,0,0};
@@ -1460,10 +1460,11 @@ void set_frequency(unsigned short int frequency)
 
     applog(LOG_DEBUG,"\n--- %s\n", __FUNCTION__);
 
-    get_plldata(1385, frequency, &reg_data_pll, &reg_data_pll2, &reg_data_vil);
+    get_plldata(1385, frequency, &reg_data_pll, &reg_data_pll2, &reg_data_vil); //uses the ppl of S7! 1385
+
     applog(LOG_DEBUG,"%s: frequency = %d\n", __FUNCTION__, frequency);
 
-    for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++)
+    for(i = 0; i < BITMAIN_MAX_CHAIN_NUM; i++) // BITMAIN_MAX_CHAIN_NUM = now 4 before 16
     {
         if(dev->chain_exist[i] == 1)
         {
@@ -1502,7 +1503,7 @@ void set_frequency(unsigned short int frequency)
                 value = BC_COMMAND_BUFFER_READY | BC_COMMAND_EN_CHAIN_ID| (i << 16) | (ret & 0x1f);
                 set_BC_write_command(value);
 
-                dev->freq[i] = frequency;
+                dev->freq[i] = frequency; // can we set now different frequency, if we split this?
 
                 cgsleep_us(5000);
             }
@@ -1510,7 +1511,8 @@ void set_frequency(unsigned short int frequency)
             {
                 memset(buf,0,9);
                 memset(cmd_buf,0,3*sizeof(int));
-                buf[0] = VIL_COMMAND_TYPE | VIL_ALL | SET_CONFIG;
+
+                buf[0] = VIL_COMMAND_TYPE | VIL_ALL | SET_CONFIG; // (0x02 << 5) / (0x01 << 4) / 0x8
                 buf[1] = 0x09;
                 buf[2] = 0;
                 buf[3] = PLL_PARAMETER;
@@ -2683,14 +2685,14 @@ void check_system_work()
         if (diff.tv_sec > 60)
         {
             asic_num = 0, error_asic = 0, avg_num = 0;
-            for(i=0; i<BITMAIN_MAX_CHAIN_NUM; i++)
+            for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
             {
                 if(dev->chain_exist[i])
                 {
                     asic_num += dev->chain_asic_num[i];
                     for(j=0; j<dev->chain_asic_num[i]; j++)
                     {
-                        avg_num += dev->chain_asic_nonce[i][j];
+                        avg_num += dev->chain_asic_nonce[i][j]; // [i max = BITMAIN_MAX_CHAIN_NUM] and [j = chain_asic_num = ]
                         applog(LOG_DEBUG,"%s: chain %d asic %d asic_nonce_num %d", __FUNCTION__, i,j,dev->chain_asic_nonce[i][j]);
                     }
                 }

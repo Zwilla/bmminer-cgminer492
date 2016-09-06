@@ -284,12 +284,12 @@ struct bitmain_c5_info {
     uint16_t	diff;
     uint16_t	reserved4;
     uint32_t	reg_value;
-    uint32_t	chain_asic_exist[BITMAIN_MAX_CHAIN_NUM][BITMAIN_DEFAULT_ASIC_NUM/32];
+    uint32_t	chain_asic_exist[BITMAIN_MAX_CHAIN_NUM][BITMAIN_DEFAULT_ASIC_NUM/32]; //[16  now 4][64/32] ok now [4][2]
     uint32_t	chain_asic_status[BITMAIN_MAX_CHAIN_NUM][BITMAIN_DEFAULT_ASIC_NUM/32];
-    uint8_t		chain_asic_num[BITMAIN_MAX_CHAIN_NUM];
-    uint8_t		temp[BITMAIN_MAX_CHAIN_NUM];
-    uint8_t		fan_speed_value[BITMAIN_MAX_FAN_NUM];
-    uint16_t	freq[BITMAIN_MAX_CHAIN_NUM];
+    uint8_t		chain_asic_num[BITMAIN_MAX_CHAIN_NUM]; // [16 now 4]
+    uint8_t		temp[BITMAIN_MAX_CHAIN_NUM]; //[16 now 4]
+    uint8_t		fan_speed_value[BITMAIN_MAX_FAN_NUM]; //[8 now 4 ]
+    uint16_t	freq[BITMAIN_MAX_CHAIN_NUM]; //[16 now 4]
     struct thr_info *thr;
     pthread_t read_nonce_thr;
     pthread_mutex_t lock;
