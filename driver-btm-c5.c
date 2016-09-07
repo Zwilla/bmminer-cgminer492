@@ -36,6 +36,7 @@
 #include "driver-btm-c5.h"
 #include "sha2_c5.h"
 
+
 #define id_string_len 34
 #define AUTH_URL    "auth.minerlink.com"
 #define PORT        "7000"
@@ -58,6 +59,7 @@ bool opt_bitmain_fan_ctrl         = false;
 bool gBegin_get_nonce             = false;
 bool update_temp                  = false;
 bool stop_mining                  = false;
+bool opt_bitmain_c5_advanced      = true;
 static bool need_send             = false;    // (default: true) set to fales, because we do not want to send miner datas to bitmain, nor our blocks
 
 // CHAR
@@ -172,15 +174,15 @@ pthread_mutex_t iic_mutex      = PTHREAD_MUTEX_INITIALIZER;
 
 // Struct
 struct thr_info *read_nonce_reg_id;                 // thread id for read nonce and register
-struct thr_info *check_system_work_id;                  // thread id for check system
+struct thr_info *check_system_work_id;              // thread id for check system
 struct thr_info *read_temp_id;
 struct thr_info *read_hash_rate;
 struct thr_info *pic_heart_beat;
 struct thr_info *change_voltage_to_old;
 struct thr_info *send_mac_thr;
 struct timeval tv_send_job = {0, 0};
-struct nonce_content temp_nonce_buf[MAX_RETURNED_NONCE_NUM];
-struct reg_content temp_reg_buf[MAX_RETURNED_NONCE_NUM];
+struct nonce_content temp_nonce_buf[MAX_RETURNED_NONCE_NUM];  // 511 = 0x1ff
+struct reg_content temp_reg_buf[MAX_RETURNED_NONCE_NUM];      // 511 = 0x1ff
 struct nonce_buf nonce_read_out;
 struct reg_buf reg_value_buf;
 struct all_parameters *dev;
@@ -417,7 +419,10 @@ unsigned char erase_pic_flash_all(unsigned char chain)
     unsigned int i    = 0;
     int erase_loop    = 0;
 
+    // warning: useless type qualifier in empty declaration [enabled by default] }__attribute__((packed, aligned(4)));
     unsigned char start_addr_h    = PIC_FLASH_POINTER_START_ADDRESS_H, start_addr_l = PIC_FLASH_POINTER_START_ADDRESS_L;
+    // compile error, but it works
+
     unsigned char end_addr_h      = PIC_FLASH_POINTER_END_ADDRESS_H, end_addr_l     = PIC_FLASH_POINTER_END_ADDRESS_L;
     unsigned int pic_flash_length = 0;
 
@@ -1532,18 +1537,20 @@ void set_frequency(unsigned short int frequency) // of what?
             {
                 memset(buf,0,sizeof(buf));
                 memset(cmd_buf,0,sizeof(cmd_buf));
-                buf[0] = 0;
-                buf[0] |= SET_PLL_DIVIDER1;
-                buf[1] = (reg_data_pll >> 16) & 0xff;
-                buf[2] = (reg_data_pll >> 8) & 0xff;
-                buf[3] = (reg_data_pll >> 0) & 0xff;
-                buf[3] |= CRC5(buf, 4*8 - 5);
+                buf[0]     = 0;
+                buf[0]    |= SET_PLL_DIVIDER1;
+                buf[1]     = (reg_data_pll >> 16) & 0xff;
+                buf[2]     = (reg_data_pll >> 8) & 0xff;
+                buf[3]     = (reg_data_pll >> 0) & 0xff;
+                buf[3]    |= CRC5(buf, 4*8 - 5);
                 cmd_buf[0] = buf[0]<<24 | buf[1]<<16 | buf[2]<<8 | buf[3];
 
                 set_BC_command_buffer(cmd_buf);
-                ret = get_BC_write_command();
+
+                ret   = (unsigned int) get_BC_write_command();
                 value = BC_COMMAND_BUFFER_READY | BC_COMMAND_EN_CHAIN_ID| (i << 16) | (ret & 0x1f);
                 set_BC_write_command(value);
+
 
                 cgsleep_us(3000);
 
@@ -1599,7 +1606,7 @@ void set_frequency(unsigned short int frequency) // of what?
 
 void set_frequency_with_addr(unsigned short int frequency,unsigned char mode,unsigned char addr, unsigned char chain)
 {
-    unsigned char buf[9] = {0,0,0,0,0,0,0,0,0};
+    unsigned char buf[9]    = {0,0,0,0,0,0,0,0,0};
     unsigned int cmd_buf[3] = {0,0,0};
     unsigned char i;
     unsigned int ret, value;
@@ -1661,9 +1668,13 @@ void set_frequency_with_addr(unsigned short int frequency,unsigned char mode,uns
         memset(buf,0,9);
         memset(cmd_buf,0,3*sizeof(int));
         if(mode)
+        {
             buf[0] = VIL_COMMAND_TYPE | VIL_ALL | SET_CONFIG;
+        }
         else
+        {
             buf[0] = VIL_COMMAND_TYPE | SET_CONFIG;
+        }
         buf[1] = 0x09;
         buf[2] = addr;
         buf[3] = PLL_PARAMETER;
@@ -1693,7 +1704,7 @@ void clear_nonce_fifo()
     unsigned char i;
     unsigned int buf[2] = {0};
 
-    for(i=0; i<3; i++)  //loop 3 times for making sure read out all nonce/register data
+    for(i=0; i < 3; i++)  //loop 3 times for making sure read out all nonce/register data
     {
         while(get_nonce_number_in_fifo() & MAX_NONCE_NUMBER_IN_FIFO)
         {
@@ -2738,6 +2749,7 @@ void check_system_work()
     copy_time(&tv_send_job,&tv_send);
     bool stop = false;
     int asic_num = 0, error_asic = 0, avg_num = 0;
+
     while(1)
     {
         struct timeval diff;
@@ -2748,6 +2760,7 @@ void check_system_work()
         if (diff.tv_sec > 60)
         {
             asic_num = 0, error_asic = 0, avg_num = 0;
+
             for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
             {
                 if(dev->chain_exist[i])
@@ -2769,6 +2782,7 @@ void check_system_work()
             {
                 avg_num = 1;
             }
+
             for(i=0; i < BITMAIN_MAX_CHAIN_NUM; i++)
             {
                 if(dev->chain_exist[i])
@@ -2825,7 +2839,7 @@ void check_system_work()
                     if(dev->chain_exist[i] == 1)
                     {
                         pthread_mutex_lock(&iic_mutex);
-                        disable_pic_dac(i);
+                        disable_pic_dac((unsigned char) i);
                         pthread_mutex_unlock(&iic_mutex);
                     }
                 }
@@ -3366,7 +3380,7 @@ void get_nonce_and_register(void)
         i = 0;
         read_loop = 0;
 
-        nonce_number = get_nonce_number_in_fifo() & MAX_NONCE_NUMBER_IN_FIFO;
+        nonce_number = get_nonce_number_in_fifo() & MAX_NONCE_NUMBER_IN_FIFO; // MAX_NONCE_NUMBER_IN_FIFO = 511 (0x1ff)
         //// applog(LOG_DEBUG,"%s: nonce_number = %d\n", __FUNCTION__, nonce_number);
         if(nonce_number)
         {
@@ -3568,9 +3582,9 @@ int bitmain_c5_init(struct init_config config)
         if(dev->chain_exist[i] == 1)
         {
             pthread_mutex_lock(&iic_mutex);
-            get_hash_board_id_number(i,hash_board_id[i]);
+            get_hash_board_id_number((unsigned char) i, hash_board_id[i]);
 
-            buf_hex = bin2hex(hash_board_id[i],12);
+            buf_hex = bin2hex(hash_board_id[i],(size_t)12);
 
             sprintf(hash_board_id_string + (board_num*id_string_len),"{\"ID\":\"%s\"},",buf_hex);
             board_num++;
@@ -3589,9 +3603,9 @@ int bitmain_c5_init(struct init_config config)
         if(dev->chain_exist[i] == 1)
         {
             pthread_mutex_lock(&iic_mutex);
-            reset_iic_pic(i);
+            reset_iic_pic((unsigned char) i);
             cgsleep_ms(500);
-            jump_to_app_from_loader(i);
+            jump_to_app_from_loader((unsigned char) i);
             pthread_mutex_unlock(&iic_mutex);
         }
     }
@@ -3654,7 +3668,7 @@ int bitmain_c5_init(struct init_config config)
         if(dev->chain_exist[i] == 1)
         {
             pthread_mutex_lock(&iic_mutex);
-            enable_pic_dac(i);
+            enable_pic_dac((unsigned char) i);
             pthread_mutex_unlock(&iic_mutex);
         }
     }
@@ -3705,6 +3719,7 @@ int bitmain_c5_init(struct init_config config)
     dev->fan_eft = config_parameter.fan_eft;
     dev->fan_pwm= config_parameter.fan_pwm_percent;
     // applog(LOG_DEBUG,"%s: fan_eft : %d  fan_pwm : %d\n", __FUNCTION__,dev->fan_eft,dev->fan_pwm);
+
     if(config_parameter.fan_eft)
     {
         if((config_parameter.fan_pwm_percent >= 0) && (config_parameter.fan_pwm_percent <= 100))
@@ -3726,12 +3741,12 @@ int bitmain_c5_init(struct init_config config)
     {
         if(config_parameter.timeout_data_integer == 0 && config_parameter.timeout_data_fractions == 0)  //driver calculate out timeout value
         {
-            dev->timeout = 0x1000000 / calculate_core_number(dev->corenum) * dev->addrInterval / (dev->frequency) * 90 / 100;
+            dev->timeout = (unsigned int) (0x1000000 / calculate_core_number(dev->corenum) * dev->addrInterval / (dev->frequency) * 90 / 100);
             // applog(LOG_DEBUG,"dev->timeout = %d\n", dev->timeout);
         }
         else
         {
-            dev->timeout = config_parameter.timeout_data_integer * 1000 + config_parameter.timeout_data_fractions;
+            dev->timeout = (unsigned int) (config_parameter.timeout_data_integer * 1000 + config_parameter.timeout_data_fractions);
         }
 
         if(dev->timeout > MAX_TIMEOUT_VALUE)
@@ -3743,6 +3758,7 @@ int bitmain_c5_init(struct init_config config)
     //set baud
     init_uart_baud();
     cgsleep_ms(10);
+
 #if USE_IIC
     if(access("/config/temp_sensor", 0) == -1)
     {
@@ -3751,7 +3767,7 @@ int bitmain_c5_init(struct init_config config)
         {
             if(dev->chain_exist[i] == 1)
             {
-                set_baud_with_addr(dev->baud,0,HAVE_TEMP,i,1,open_core,MID_OR_BOT);
+                set_baud_with_addr(dev->baud, 0, HAVE_TEMP, i, 1, (int) open_core, MID_OR_BOT);
             }
         }
 
@@ -3880,15 +3896,15 @@ int parse_job_to_c5(unsigned char **buf,struct pool *pool,uint32_t id)
     part_job.token_type         = SEND_JOB_TYPE;
     part_job.version            = 0x00;
     part_job.pool_nu            = pool_send_nu;
-    part_job.new_block          = pool->swork.clean ?1:0;
+    part_job.new_block          = (uint8_t) (pool->swork.clean ? 1 : 0);
     part_job.asic_diff_valid    = 1;
     part_job.asic_diff          = 15;
     part_job.job_id             = id;
 
-    hex2bin(&part_job.bbversion, pool->bbversion, 4);
-    hex2bin((uint32_t *) part_job.prev_hash, pool->prev_hash, 32);
-    hex2bin(&part_job.nbit, pool->nbit, 4);
-    hex2bin(&part_job.ntime, pool->ntime, 4);
+    hex2bin((unsigned char *) &part_job.bbversion, pool->bbversion, (size_t)4);
+    hex2bin((unsigned char *) (uint32_t *) part_job.prev_hash, pool->prev_hash, (size_t)32);
+    hex2bin((unsigned char *) &part_job.nbit, pool->nbit, (size_t)4);
+    hex2bin((unsigned char *) &part_job.ntime, pool->ntime, (size_t)4);
     part_job.coinbase_len = pool->coinbase_len;
     part_job.nonce2_offset = pool->nonce2_offset;
     part_job.nonce2_bytes_num = pool->n2size;
@@ -3901,8 +3917,12 @@ int parse_job_to_c5(unsigned char **buf,struct pool *pool,uint32_t id)
     buf_len = sizeof(struct part_of_job) + pool->coinbase_len + pool->merkles * 32 + 2;
 
     tmp_buf = (unsigned char *)malloc(buf_len);
+
     if (unlikely(!tmp_buf))
+    {
         quit(1, "Failed to malloc tmp_buf");
+    }
+
     part_job.length = buf_len -8;
 
     memset(tmp_buf,0,buf_len);
@@ -3918,19 +3938,22 @@ int parse_job_to_c5(unsigned char **buf,struct pool *pool,uint32_t id)
         memcpy(tmp_buf + sizeof(struct part_of_job) + pool->coinbase_len + i * 32, pool->swork.merkle_bin[i], 32);
     }
 
-    crc = CRC16((uint8_t *)tmp_buf, buf_len-2);
+    crc = CRC16((uint8_t *)tmp_buf, (uint16_t)(buf_len - 2));
     memcpy(tmp_buf + (buf_len - 2), &crc, 2);
 
     pool_send_nu++;
     *buf = (unsigned char *)malloc(buf_len);
+
     if (unlikely(!tmp_buf))
+    {
         quit(1, "Failed to malloc buf");
+    }
     memcpy(*buf,tmp_buf,buf_len);
     free(tmp_buf);
     return buf_len;
 }
 
-static void show_status(int if_quit)
+static void show_status(int if_quit) // never used atm
 {
     char * buf_hex = NULL;
     unsigned int *l_job_start_address = NULL;
@@ -3938,6 +3961,7 @@ static void show_status(int if_quit)
     int i = 0;
     get_work_nonce2(buf);
     set_dhash_acc_control((unsigned int)get_dhash_acc_control() & ~RUN_BIT);
+
     while((unsigned int)get_dhash_acc_control() & RUN_BIT)
     {
         cgsleep_ms(1);
@@ -3947,11 +3971,13 @@ static void show_status(int if_quit)
     buf_hex = bin2hex((unsigned char *)dev->current_job_start_address,c_coinbase_padding);
 
     free(buf_hex);
+
     for(i=0; i<c_merkles_num; i++)
     {
-        buf_hex = bin2hex((unsigned char *)dev->current_job_start_address + c_coinbase_padding+ i*MERKLE_BIN_LEN,32);
+        buf_hex = bin2hex((unsigned char *)dev->current_job_start_address + c_coinbase_padding+ i*MERKLE_BIN_LEN,(size_t)32);
         free(buf_hex);
     }
+
     if(dev->current_job_start_address == job_start_address_1)
     {
         l_job_start_address = job_start_address_2;
@@ -3960,18 +3986,24 @@ static void show_status(int if_quit)
     {
         l_job_start_address = job_start_address_1;
     }
-    buf_hex = bin2hex((unsigned char *)l_job_start_address,l_coinbase_padding);
+
+    buf_hex = bin2hex((unsigned char *)l_job_start_address,(size_t)l_coinbase_padding);
     free(buf_hex);
+
     for(i=0; i<l_merkles_num; i++)
     {
         buf_hex = bin2hex((unsigned char *)l_job_start_address + l_coinbase_padding+ i*MERKLE_BIN_LEN,32);
         free(buf_hex);
     }
+
     if(if_quit)
+    {
         quit(1, "HW is more than 5!!");
+    }
 }
 
-static void show_pool_status(struct pool *pool,uint64_t nonce2)
+
+static void show_pool_status(struct pool *pool,uint64_t nonce2) // never used atm
 {
     char * buf_hex = NULL;
     int i = 0;
@@ -3979,6 +4011,7 @@ static void show_pool_status(struct pool *pool,uint64_t nonce2)
     printf("%s: nonce2 0x%x\n", __FUNCTION__, nonce2);
     printf("%s: coinbase : %s\n", __FUNCTION__, buf_hex);
     free(buf_hex);
+
     for(i=0; i<pool->merkles; i++)
     {
         buf_hex = bin2hex(pool->swork.merkle_bin[i],32);
@@ -4048,6 +4081,7 @@ int send_job(unsigned char *buf)
     }
 
     coinbase_padding = malloc(coinbase_padding_len);
+
     if(!coinbase_padding)
     {
         // applog(LOG_DEBUG,"%s: malloc coinbase_padding failed.\n", __FUNCTION__);
@@ -4061,6 +4095,7 @@ int send_job(unsigned char *buf)
     if(part_job->merkles_num)
     {
         merkles_bin = malloc(part_job->merkles_num * MERKLE_BIN_LEN);
+
         if(!merkles_bin)
         {
             // applog(LOG_DEBUG,"%s: malloc merkles_bin failed.\n", __FUNCTION__);
@@ -4081,6 +4116,7 @@ int send_job(unsigned char *buf)
 
     l_coinbase_padding = c_coinbase_padding;
     c_coinbase_padding = coinbase_padding_len;
+
     for(i=0; i<coinbase_padding_len; i++)
     {
         *((unsigned char *)dev->current_job_start_address + i) = *(coinbase_padding + i);
@@ -4095,8 +4131,10 @@ int send_job(unsigned char *buf)
             // applog(LOG_DEBUG,"%s: coinbase_padding_in_ddr[%d] = 0x%x, but *(coinbase_padding + %d) = 0x%x", __FUNCTION__, i, *(((unsigned char *)dev->current_job_start_address + i)), i, *(coinbase_padding + i));
         }
     }
+
     l_merkles_num = c_merkles_num;
     c_merkles_num = part_job->merkles_num;
+
     if(part_job->merkles_num)
     {
         // applog(LOG_DEBUG,"%s: copy merkle bin into memory ...\n", __FUNCTION__);
@@ -4121,12 +4159,14 @@ int send_job(unsigned char *buf)
 
 
     set_dhash_acc_control((unsigned int)get_dhash_acc_control() & ~RUN_BIT);
+
     while((unsigned int)get_dhash_acc_control() & RUN_BIT)
     {
         cgsleep_ms(1);
         // applog(LOG_DEBUG,"%s: run bit is 1 after set it to 0\n", __FUNCTION__);
         times++;
     }
+
     cgsleep_ms(1);
 
 
@@ -4145,7 +4185,7 @@ int send_job(unsigned char *buf)
     if(part_job->asic_diff_valid)
     {
         set_ticket_mask((unsigned int)(part_job->asic_diff & 0x000000ff));
-        dev->diff = part_job->asic_diff & 0xff;
+        dev->diff = (unsigned char) (part_job->asic_diff & 0xff);
     }
 
     set_job_id(part_job->job_id);
@@ -4153,6 +4193,7 @@ int send_job(unsigned char *buf)
     set_block_header_version(part_job->bbversion);
 
     memset(buf2, 0, PREV_HASH_LEN*sizeof(unsigned int));
+
     for(i=0; i<(PREV_HASH_LEN/sizeof(unsigned int)); i++)
     {
         buf2[i] = ((part_job->prev_hash[4*i + 3]) << 24) | ((part_job->prev_hash[4*i + 2]) << 16) | ((part_job->prev_hash[4*i + 1]) << 8) | (part_job->prev_hash[4*i + 0]);
@@ -4514,15 +4555,18 @@ static bool bitmain_c5_prepare(struct thr_info *thr)
                     .chain_min_freq             = 400,
                     .chain_max_freq             = 800,   // (default: 600) we set it to 800
             };
-    c5_config.crc = CRC16((uint8_t *)(&c5_config), sizeof(c5_config)-2);
+    c5_config.crc = CRC16((uint8_t *)(&c5_config), (uint16_t)(sizeof(c5_config)-2));
 
     bitmain_c5_init(c5_config);
 
     send_mac_thr = calloc(1,sizeof(struct thr_info));
-    if(thr_info_create(send_mac_thr, NULL, send_mac, send_mac_thr))
+
+    /*
+     if(thr_info_create(send_mac_thr, NULL, send_mac, send_mac_thr))
     {
         // applog(LOG_DEBUG,"%s: create thread for send mac\n", __FUNCTION__);
     }
+    */
 
     return true;
 }
@@ -4530,7 +4574,18 @@ static bool bitmain_c5_prepare(struct thr_info *thr)
 static void bitmain_c5_reinit_device(struct cgpu_info *bitmain)
 {
     if(!status_error)
+    {
         system("/etc/init.d/bmminer.sh restart > /dev/null 2>&1 &");
+        
+        if (opt_bitmain_c5_advanced)
+        {
+            system("/etc/init.d/zwilla/fastcooling.sh > /dev/null 2>&1 &"); 
+            // Advanced features by Zwilla
+            // you can get this option if you buy advanded featured
+            // or you build this script by your self
+        }
+    }
+    
 }
 
 
@@ -4546,8 +4601,21 @@ static void bitmain_c5_detect(__maybe_unused bool hotplug)
     cgpu->deven = DEV_ENABLED;
     cgpu->threads = 1;
     cgpu->device_data = calloc(sizeof(struct bitmain_c5_info), 1);
+    
     if (unlikely(!(cgpu->device_data)))
+    {
+
+        if (opt_bitmain_c5_advanced)
+        {
+            system("/etc/init.d/zwilla/reboot.sh > /dev/null 2>&1 &");
+            // Advanced features by Zwilla
+            // you can get this option if you buy advanded featured
+            // or you build this script by your self
+        }
+
         quit(1, "Failed to calloc cgpu_info data");
+    }
+    
     a = cgpu->device_data;
     a->pool0_given_id = 0;
     a->pool1_given_id = 1;
@@ -4606,20 +4674,26 @@ static uint64_t hashtest_submit(struct thr_info *thr, struct work *work, uint32_
     uint32_t *hash2_32 = (uint32_t *)hash1;
     __attribute__ ((aligned (4)))  sha2_context ctx;
     memcpy(ctx.state, (void*)work->midstate, 32);
+
 #if TEST_DHASH
     rev((unsigned char*)ctx.state, sizeof(ctx.state));
 #endif
+
     ctx.total[0] = 80;
     ctx.total[1] = 00;
     memcpy(hash1, (void*)work->data + 64, 12);
+
 #if TEST_DHASH
     rev(hash1, 12);
 #endif
+
     flip_swab(ctx.buffer, hash1, 12);
     memcpy(hash1, &nonce, 4);
+
 #if TEST_DHASH
     rev(hash1, 4);
 #endif
+
     flip_swab(ctx.buffer + 12, hash1, 4);
 
     sha2_finish(&ctx, hash1);
@@ -4651,9 +4725,11 @@ static uint64_t hashtest_submit(struct thr_info *thr, struct work *work, uint32_
         which_asic_nonce = (nonce >> (24 + dev->check_bit)) & 0xff;
         // applog(LOG_DEBUG,"%s: chain %d which_asic_nonce %d ", __FUNCTION__, chain_id, which_asic_nonce);
         dev->chain_asic_nonce[chain_id][which_asic_nonce]++;
+
         if(be32toh(hash2_32[6 - pool_diff_bit/32]) < ((uint32_t)0xffffffff >> (pool_diff_bit%32)))
         {
             hashes += (0x01UL << DEVICE_DIFF);
+
             if(current_diff != 0)
             {
                 for(i=0; i < net_diff_bit/32; i++)
@@ -4661,6 +4737,7 @@ static uint64_t hashtest_submit(struct thr_info *thr, struct work *work, uint32_
                     if(be32toh(hash2_32[6 - i]) != 0)
                         break;
                 }
+
                 if(i == net_diff_bit/32)
                 {
                     if(be32toh(hash2_32[6 - net_diff_bit/32]) < ((uint32_t)0xffffffff >> (net_diff_bit%32)))
@@ -4669,6 +4746,7 @@ static uint64_t hashtest_submit(struct thr_info *thr, struct work *work, uint32_
                     }
                 }
             }
+
             submit_nonce(thr, work, nonce);
         }
         else if(be32toh(hash2_32[6 - DEVICE_DIFF/32]) < ((uint32_t)0xffffffff >> (DEVICE_DIFF%32)))
@@ -4676,8 +4754,10 @@ static uint64_t hashtest_submit(struct thr_info *thr, struct work *work, uint32_
             hashes += (0x01UL << DEVICE_DIFF);
         }
     }
+
     return hashes;
 }
+
 
 static int64_t bitmain_scanhash(struct thr_info *thr)
 {
@@ -4694,6 +4774,7 @@ static int64_t bitmain_scanhash(struct thr_info *thr)
     h = 0;
     pthread_mutex_lock(&nonce_mutex);
     cg_rlock(&info->update_lock);
+
     while(nonce_read_out.nonce_num)
     {
         uint32_t nonce3 = nonce_read_out.nonce_buffer[nonce_read_out.p_rd].nonce3;
@@ -4782,9 +4863,11 @@ static int64_t bitmain_scanhash(struct thr_info *thr)
         h += hashtest_submit(thr,work,nonce3,midstate,pool,nonce2,chain_id);
         free_work(work);
     }
+
     cg_runlock(&info->update_lock);
     pthread_mutex_unlock(&nonce_mutex);
     cgsleep_ms(1);
+
     if(h != 0)
     {
         // applog(LOG_DEBUG,"%s: hashes %u ...\n", __FUNCTION__,h * 0xffffffffull);
@@ -4810,14 +4893,17 @@ static void bitmain_c5_update(struct cgpu_info *bitmain_c5)
     int i; 
     int count = 0;
     mutex_lock(&info->lock);
+
     static char *last_job = NULL;
-    bool same_job = true;
-    unsigned char *buf = NULL;
-    thr->work_update = false;
-    thr->work_restart = false;
+    bool same_job         = true;
+    unsigned char *buf    = NULL;
+    thr->work_update      = false;
+    thr->work_restart     = false;
+
     /* Step 1: Make sure pool is ready */
     work = get_work(thr, thr->id);
     discard_work(work); /* Don't leak memory */
+
     /* Step 2: Protocol check */
     pool = current_pool();
     
@@ -4829,16 +4915,22 @@ static void bitmain_c5_update(struct cgpu_info *bitmain_c5)
     /* Step 3: Parse job to c5 formart */
     cg_wlock(&info->update_lock);
     cg_rlock(&pool->data_lock);
+
     info->pool_no = pool->pool_no;
     copy_pool_stratum(&info->pool2, &info->pool1);
+
     info->pool2_given_id = info->pool1_given_id;
 
     copy_pool_stratum(&info->pool1, &info->pool0);
+
     info->pool1_given_id = info->pool0_given_id;
 
     copy_pool_stratum(&info->pool0, pool);
+
     info->pool0_given_id = ++given_id;
+
     parse_job_to_c5(&buf, pool, info->pool0_given_id);
+
     
     /* Step 4: Send out buf */
     if(!status_error)

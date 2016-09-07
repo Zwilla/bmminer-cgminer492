@@ -46,12 +46,14 @@
 #define RESET_FPGA						(1 << 15)
 #define RESET_TIME(time)				(time << 0)
 #define TIME_OUT_VALID					(1 << 31)
+
 //RETURN_NONCE
 #define WORK_ID_OR_CRC					(1 << 31)
 #define WORK_ID_OR_CRC_VALUE(value)		((value >> 16) & 0x7fff)
 #define NONCE_INDICATOR					(1 << 7)
 #define CHAIN_NUMBER(value)				(value & 0xf)
 #define REGISTER_DATA_CRC(value)		((value >> 24) & 0x7f)
+
 //BC_WRITE_COMMAND
 #define BC_COMMAND_BUFFER_READY			(1 << 31)
 #define BC_COMMAND_EN_CHAIN_ID			(1 << 23)
@@ -70,6 +72,7 @@
 #define NEW_BLOCK						(1 << 7)
 #define RUN_BIT							(1 << 6)
 #define OPERATION_MODE					(1 << 5)
+
 //NONCE_FIFO_INTERRUPT
 #define FLUSH_NONCE3_FIFO				(1 << 16)
 
@@ -158,14 +161,12 @@
 #define IIC_REG_ADDR(x)						((x & 0xff) << 8)
 
 
-
-
 //other FPGA macro define
 #define TOTAL_LEN						0x160
 #define FPGA_MEM_TOTAL_LEN				(32*1024*1024)	// (default: 16M bytes) we give 32
 #define HARDWARE_VERSION_VALUE			0xC501
 #define NONCE2_AND_JOBID_STORE_SPACE	(4*1024*1024)	// 2M bytes (default: 2) we give now 4
-#define NONCE2_AND_JOBID_STORE_SPACE_ORDER	18			// (default:9 for 2M bytes space) Set to: 18 for 4M bytes space
+#define NONCE2_AND_JOBID_STORE_SPACE_ORDER	9			// (default:9 for 2M bytes space) Set to: 18 for 4M bytes space
 
 #define JOB_STORE_SPACE					(1 << 16)		// for 64K bytes space
 #define JOB_START_SPACE					(1024*8)		// 8K bytes
@@ -190,9 +191,10 @@
 #define CHAIN_ASIC_NUM					63              // number of max asic chips for counting
 #define BITMAIN_MAX_FAN_NUM				8				// default = 8 set now to FPGA just can supports 8 fan but there are only 2 (0 and 3) check the api
 #define BITMAIN_DEFAULT_ASIC_NUM		64				// max support 64 ASIC on 1 HASH board
+
 #define MIDSTATE_LEN					32              // MIDSTATE len = 32 Asicboost ? 2.5 Building work items
 #define DATA2_LEN						12              // 12 bytes ??
-#define MAX_RETURNED_NONCE_NUM			13              // Default 10, now testing 13
+#define MAX_RETURNED_NONCE_NUM			100              // Default 10, now testing 13
 #define PREV_HASH_LEN					32              // fixed 2.2 The Bitcoin block header (32 bytes)
 #define MERKLE_BIN_LEN					32              // fixed 2.2 The Bitcoin block header (32 bytes) Merkle root Head = 28 Version= 4 ??
 #define INIT_CONFIG_TYPE				0x51
@@ -214,16 +216,18 @@
 #define PWM_ADJUST_FACTOR				((100 - MIN_PWM_PERCENT)/(MAX_FAN_TEMP-MIN_FAN_TEMP))
 #define PWM_SCALE						50
 #define PWM_ADJ_SCALE					9/10
-//use for hash test
+
+// use for hash test
 #define TEST_DHASH 0
 #define DEVICE_DIFF 8
-//use for status check
-//#define XILINX
+// use for status check
+// #define XILINX
 #define C5
 
 #ifdef C5
-#define RED_LED_DEV "/sys/class/leds/hps_led2/brightness"
-#define GREEN_LED_DEV "/sys/class/leds/hps_led0/brightness"
+/// https://www.altera.com/en_US/pdfs/literature/hb/cyclone-v/cv_5v4.pdf
+#define RED_LED_DEV "/sys/class/leds/hps_led2/brightness"     // https://github.com/dwesterg/meta-altera-refdes
+#define GREEN_LED_DEV "/sys/class/leds/hps_led0/brightness"   // https://github.com/dwesterg/meta-altera-refdes
 #else
 //#ifdef XILINX
 #define RED_LED_DEV "/sys/class/gpio/gpio37/value"
@@ -344,11 +348,11 @@ struct nonce_content
 {
     uint32_t	job_id;
     uint32_t	work_id;
-    uint32_t	header_version;
+    uint32_t	header_version;   // atm 0x200000
     uint64_t	nonce2;
     uint32_t	nonce3;
     uint32_t	chain_num;
-    uint8_t		midstate[MIDSTATE_LEN];
+    uint8_t		midstate[MIDSTATE_LEN]; // MIDSTATE_LEN = 32
 } __attribute__((packed, aligned(4)));
 
 
@@ -358,7 +362,7 @@ struct nonce
     uint8_t		version;
     uint16_t	length;
     uint16_t	valid_nonce_num;
-    struct nonce_content nonce_cont[MAX_RETURNED_NONCE_NUM];
+    struct nonce_content nonce_cont[MAX_RETURNED_NONCE_NUM]; // (default:10)
     uint16_t	crc;
 } __attribute__((packed, aligned(4)));
 
