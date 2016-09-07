@@ -20,7 +20,8 @@ typedef struct nitem {
 
 #define DATAN(_item) ((NITEM *)(_item->data))
 
-struct dupdata {
+struct dupdata
+{
 	int timelimit;
 	K_LIST *nfree_list;
 	K_STORE *nonce_list;
@@ -35,7 +36,9 @@ void dupalloc(struct cgpu_info *cgpu, int timelimit)
 
 	dup = calloc(1, sizeof(*dup));
 	if (unlikely(!dup))
-		quithere(1, "Failed to calloc dupdata");
+    {
+        quithere(1, "Failed to calloc dupdata");
+    }
 
 	dup->timelimit = timelimit;
 	dup->nfree_list = k_new_list("Nonces", sizeof(NITEM), 1024, 0, true);

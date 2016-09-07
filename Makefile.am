@@ -45,7 +45,6 @@ cgminer_SOURCES	+= logging.c
 
 cgminer_SOURCES	+= klist.h klist.c
 
-cgminer_SOURCES	+= noncedup.c
 
 
 if WANT_USBUTILS
