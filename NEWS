@@ -1,4 +1,4 @@
-Version 4.9.2 - 7th September 2016 by Miguel Padilla - alias Zwilla of Fubly
+Version 4.9.2 BMMiner tom CGminer - 7th September 2016 by Miguel Padilla - alias Zwilla of Fubly
 
 deleted many files and code, because this miner software is at moment only for Antminer S9
 the addition for S7 will follow
@@ -7,6 +7,8 @@ Warning! This Git is not proved by Core Developer -ck or Kano
 
 - Deletions: too many to list them
 - Addition: tom many to list them
+
+The community arround this Git you find here: https://bitcointalk.org/index.php?topic=1569129
 
 
 Version 4.9.2 - 12th June 2015
