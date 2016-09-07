@@ -9,36 +9,38 @@
  */
 
 #include "config.h"
-
 #include <unistd.h>
 
 #include "logging.h"
 #include "miner.h"
 
-bool opt_debug = false;
-bool opt_log_output = false;
-
+bool opt_debug              = false;
+bool opt_log_output         = false;
 /* per default priorities higher than LOG_NOTICE are logged */
-int opt_log_level = LOG_NOTICE;
-FILE * g_log_file = NULL;
-
-bool g_logfile_enable = false;
-char g_logfile_path[256] = {0};
+int opt_log_level           = LOG_NOTICE;
+FILE * g_log_file           = NULL;
+bool g_logfile_enable       = false;
+char g_logfile_path[256]    = {0};
 char g_logfile_openflag[32] = {0};
 
 static void my_log_curses(int prio, const char *datetime, const char *str, bool force)
 {
 	if (opt_quiet && prio != LOG_ERR)
-		return;
+    {
+        return;
+    }
 
 	/* Mutex could be locked by dead thread on shutdown so forcelog will
 	 * invalidate any console lock status. */
-	if (force) {
+	if (force)
+    {
 		mutex_trylock(&console_lock);
 		mutex_unlock(&console_lock);
 	}
+
 #ifdef HAVE_CURSES
 	extern bool use_curses;
+
 	if (use_curses && log_curses_only(prio, datetime, str))
 		;
 	else
@@ -58,13 +60,15 @@ static void my_log_curses(int prio, const char *datetime, const char *str, bool 
 void _applog(int prio, const char *str, bool force)
 {
 #ifdef HAVE_SYSLOG_H
-	if (use_syslog) {
+	if (use_syslog)
+	{
 		syslog(LOG_LOCAL0 | prio, "%s", str);
 	}
 #else
 	if (0) {} //for what do we need this?
 #endif
-	else {
+	else
+    {
 		char datetime[64];
 		struct timeval tv = {0, 0};
 		struct tm *tm;
@@ -84,21 +88,28 @@ void _applog(int prio, const char *str, bool force)
 			tm->tm_sec, ms);
 
 		/* Only output to stderr if it's not going to the screen as well */
-		if (!isatty(fileno((FILE *)stderr))) {
+		if (!isatty(fileno((FILE *)stderr)))
+		{
 			fprintf(stderr, "%s%s\n", datetime, str);	/* atomic write to stderr */
 			fflush(stderr);
 		}
-			if(g_logfile_enable) {
-			if(!g_log_file) {
-				g_log_file = fopen(g_logfile_path, g_logfile_openflag);
-			}
-			if(g_log_file) {
+			if(g_logfile_enable)
+            {
+
+                if(!g_log_file)
+                {
+                    g_log_file = fopen(g_logfile_path, g_logfile_openflag);
+                }
+
+			if(g_log_file)
+            {
 				fwrite(datetime, strlen(datetime), 1, g_log_file);
 				fwrite(str, strlen(str), 1, g_log_file);
 				fwrite("\n", 1, 1, g_log_file);
 				fflush(g_log_file);
 			}
 		}
+
 		my_log_curses(prio, datetime, str, force);
 	}
 }
@@ -112,9 +123,12 @@ void _simplelog(int prio, const char *str, bool force)
 #else
 	if (0) {}
 #endif
-	else {
+	else
+    {
 		/* Only output to stderr if it's not going to the screen as well */
-		if (!isatty(fileno((FILE *)stderr))) {
+
+        if (!isatty(fileno((FILE *)stderr)))
+        {
 			fprintf(stderr, "%s\n", str);	/* atomic write to stderr */
 			fflush(stderr);
 		}
