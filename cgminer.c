@@ -148,18 +148,21 @@ bool opt_realquiet;
 bool opt_loginput;
 bool opt_compact;
 
-const int opt_cutofftemp = 95;
-int opt_log_interval = 5;
-int opt_queue = 1;
-static int max_queue = 1;
-int opt_scantime = -1;
-const int max_scantime = -1;
-int opt_expiry = 120;
+const int opt_cutofftemp       = 95;
+int opt_log_interval           = 5;
+int opt_queue                  = 1;
+static int max_queue           = 1;
+int opt_scantime               = -1;
+const int max_scantime         = -1;
+int opt_expiry                 = 120;
+int opt_pool_fallback          = 120;
+unsigned long global_quota_gcd = 1;
+
 static const bool opt_time = true;
 unsigned long long global_hashrate;
-unsigned long global_quota_gcd = 1;
+
 time_t last_getwork;
-int opt_pool_fallback = 120;
+
 
 
 #if defined(USE_USBUTILS)
@@ -189,29 +192,36 @@ static bool alt_status;
 static bool switch_status;
 static bool opt_submit_stale = true;
 static int opt_shares;
+
 bool opt_fail_only;
 static bool opt_fix_protocol;
 bool opt_lowmem;
 bool opt_autofan;
 bool opt_autoengine;
 bool opt_noadl;
+
 char *opt_version_path = NULL;
 char *opt_logfile_path = NULL;
 char *opt_logfile_openflag = NULL;
 char *opt_logwork_path = NULL;
 char *opt_logwork_asicnum = NULL;
+
 bool opt_logwork_diff = false;
+
 char *opt_api_allow = NULL;
 char *opt_api_groups;
 char *opt_api_description = PACKAGE_STRING;
 int opt_api_port = 4028;
 char *opt_api_host = API_LISTEN_ADDR;
+
 bool opt_api_listen;
 bool opt_api_mcast;
+
 char *opt_api_mcast_addr = API_MCAST_ADDR;
 char *opt_api_mcast_code = API_MCAST_CODE;
 char *opt_api_mcast_des = "";
 int opt_api_mcast_port = 4028;
+
 bool opt_api_network;
 bool opt_delaynet;
 bool opt_disable_pool;
@@ -293,6 +303,7 @@ pthread_cond_t restart_cond;
 pthread_cond_t gws_cond;
 
 #define CG_LOCAL_MHASHES_MAX_NUM 12
+
 double g_local_mhashes_dones[CG_LOCAL_MHASHES_MAX_NUM] = {0};
 int g_local_mhashes_index = 0;
 double g_displayed_rolling = 0;
@@ -389,9 +400,11 @@ int opt_suggest_diff;
 int opt_multi_version = 1;  // set her to true / 1
 
 static const char def_conf[] = "bmminer.conf";
+
 static char *default_config;
 static bool config_loaded;
 static int include_count;
+
 #define JSON_INCLUDE_CONF "include"
 #define JSON_LOAD_ERROR "JSON decode of file '%s' failed\n %s"
 #define JSON_LOAD_ERROR_LEN strlen(JSON_LOAD_ERROR)
@@ -411,15 +424,18 @@ struct thread_q *getq;
 static uint32_t total_work;
 struct work *staged_work = NULL;
 
+
 struct schedtime
 {
     bool enable;
     struct tm tm;
 };
 
+
 struct schedtime schedstart;
 struct schedtime schedstop;
 bool sched_paused;
+
 
 static bool time_before(struct tm *tm1, struct tm *tm2)
 {
@@ -430,23 +446,30 @@ static bool time_before(struct tm *tm1, struct tm *tm2)
     return false;
 }
 
+
 static bool should_run(void)
 {
     struct timeval tv;
     struct tm *tm;
 
     if (!schedstart.enable && !schedstop.enable)
+    {
         return true;
+    }
 
     cgtime(&tv);
+
     const time_t tmp_time = tv.tv_sec;
-    tm = localtime(&tmp_time);
+    tm                    = localtime(&tmp_time);
+
     if (schedstart.enable)
     {
         if (!schedstop.enable)
         {
             if (time_before(tm, &schedstart.tm))
+            {
                 return false;
+            }
 
             /* This is a once off event with no stop time set */
             schedstart.enable = false;
@@ -455,22 +478,35 @@ static bool should_run(void)
         if (time_before(&schedstart.tm, &schedstop.tm))
         {
             if (time_before(tm, &schedstop.tm) && !time_before(tm, &schedstart.tm))
+            {
                 return true;
+            }
+
             return false;
-        } /* Times are reversed */
+        }
+
+        /* Times are reversed */
         if (time_before(tm, &schedstart.tm))
         {
             if (time_before(tm, &schedstop.tm))
+            {
                 return true;
+            }
+
             return false;
         }
+
         return true;
     }
     /* only schedstop.enable == true */
     if (!time_before(tm, &schedstop.tm))
+    {
         return false;
+    }
+
     return true;
 }
+
 
 void get_datestamp(char *f, size_t fsiz, struct timeval *tv)
 {
@@ -488,6 +524,7 @@ void get_datestamp(char *f, size_t fsiz, struct timeval *tv)
              tm->tm_sec, ms);
 }
 
+
 static void get_timestamp(char *f, size_t fsiz, struct timeval *tv)
 {
     struct tm *tm;
@@ -501,7 +538,9 @@ static void get_timestamp(char *f, size_t fsiz, struct timeval *tv)
              tm->tm_sec, ms);
 }
 
+
 static char exit_buf[512];
+
 
 static void applog_and_exit(const char *fmt, ...)
 {
@@ -514,13 +553,16 @@ static void applog_and_exit(const char *fmt, ...)
     exit(1);
 }
 
+
 static pthread_mutex_t sharelog_lock;
 static FILE *sharelog_file = NULL;
+
 
 static struct thr_info *__get_thread(int thr_id)
 {
     return mining_thr[thr_id];
 }
+
 
 struct thr_info *get_thread(int thr_id)
 {
@@ -533,12 +575,14 @@ struct thr_info *get_thread(int thr_id)
     return thr;
 }
 
+
 static struct cgpu_info *get_thr_cgpu(int thr_id)
 {
     struct thr_info *thr = get_thread(thr_id);
 
     return thr->cgpu;
 }
+
 
 struct cgpu_info *get_devices(int id)
 {
@@ -551,6 +595,7 @@ struct cgpu_info *get_devices(int id)
     return cgpu;
 }
 
+
 static void sharelog(const char*disposition, const struct work*work)
 {
     char *target, *hash, *data;
@@ -562,21 +607,25 @@ static void sharelog(const char*disposition, const struct work*work)
     size_t ret;
 
     if (!sharelog_file)
+    {
         return;
+    }
 
     thr_id = work->thr_id;
-    cgpu = get_thr_cgpu(thr_id);
-    pool = work->pool;
-    t = (unsigned long int)(work->tv_work_found.tv_sec);
+    cgpu   = get_thr_cgpu(thr_id);
+    pool   = work->pool;
+    t      = (unsigned long int)(work->tv_work_found.tv_sec);
     target = bin2hex(work->target, sizeof(work->target));
-    hash = bin2hex(work->hash, sizeof(work->hash));
-    data = bin2hex(work->data, sizeof(work->data));
+    hash   = bin2hex(work->hash, sizeof(work->hash));
+    data   = bin2hex(work->data, sizeof(work->data));
 
     // timestamp,disposition,target,pool,dev,thr,sharehash,sharedata
     rv = snprintf(s, sizeof(s), "%lu,%s,%s,%s,%s%u,%u,%s,%s\n", t, disposition, target, pool->rpc_url, cgpu->drv->name, cgpu->device_id, thr_id, hash, data);
+
     free(target);
     free(hash);
     free(data);
+
     if (rv >= (int)(sizeof(s)))
     {
         s[sizeof(s) - 1] = '\0';
@@ -617,23 +666,36 @@ void adjust_quota_gcd(void)
     {
         pool = pools[i];
         quota = pool->quota;
+
         if (!quota)
+        {
             continue;
+        }
+
         if (quota < lowest_quota)
+        {
             lowest_quota = quota;
+        }
     }
 
     if (likely(lowest_quota < ~0UL))
     {
         gcd = lowest_quota;
+
         for (i = 0; i < total_pools; i++)
         {
             pool = pools[i];
-            quota = pool->quota;
+            quota = (unsigned long) pool->quota;
+
             if (!quota)
+            {
                 continue;
+            }
+
             while (quota % gcd)
+            {
                 gcd--;
+            }
         }
     }
     else
@@ -670,9 +732,10 @@ struct pool *add_pool(void)
         quit(1, "Failed to malloc pool in add_pool");
     }
 
-    pool->pool_no = pool->prio = total_pools;
-    pools = cgrealloc(pools, sizeof(struct pool *) * (total_pools + 2));
+    pool->pool_no        = pool->prio = total_pools;
+    pools                = cgrealloc(pools, sizeof(struct pool *) * (total_pools + 2));
     pools[total_pools++] = pool;
+
     mutex_init(&pool->pool_lock);
 
     if (unlikely(pthread_cond_init(&pool->cr_cond, NULL)))
@@ -688,9 +751,10 @@ struct pool *add_pool(void)
     /* Make sure the pool doesn't think we've been idle since time 0 */
     pool->tv_idle.tv_sec = ~0UL;
 
-    pool->rpc_req = getwork_req;
+    pool->rpc_req   = getwork_req;
     pool->rpc_proxy = NULL;
-    pool->quota = 1;
+    pool->quota     = 1;
+
     adjust_quota_gcd();
     pool->extranonce_subscribe = false;
 
@@ -704,8 +768,10 @@ static bool pool_tset(struct pool *pool, bool *var)
     bool ret;
 
     mutex_lock(&pool->pool_lock);
-    ret = *var;
+
+    ret  = *var;
     *var = true;
+
     mutex_unlock(&pool->pool_lock);
 
     return ret;
@@ -717,8 +783,10 @@ bool pool_tclear(struct pool *pool, bool *var)
     bool ret;
 
     mutex_lock(&pool->pool_lock);
-    ret = *var;
+
+    ret  = *var;
     *var = false;
+
     mutex_unlock(&pool->pool_lock);
 
     return ret;
@@ -730,7 +798,9 @@ struct pool *current_pool(void)
     struct pool *pool;
 
     cg_rlock(&control_lock);
+
     pool = currentpool;
+
     cg_runlock(&control_lock);
 
     return pool;
@@ -766,60 +836,72 @@ static char *set_int_1_to_65535(const char *arg, int *i)
     return set_int_range(arg, i, 1, 65535);
 }
 
+
 static char *set_int_0_to_10(const char *arg, int *i)
 {
     return set_int_range(arg, i, 0, 10);
 }
+
 
 static char *set_int_0_to_100(const char *arg, int *i)
 {
     return set_int_range(arg, i, 0, 100);
 }
 
+
 static char *set_int_0_to_255(const char *arg, int *i)
 {
     return set_int_range(arg, i, 0, 255);
 }
+
 
 static char *set_int_1_to_255(const char *arg, int *i)
 {
     return set_int_range(arg, i, 1, 255);
 }
 
+
 static char *set_int_0_to_7680(const char *arg, int *i)
 {
         return set_int_range(arg, i, 0, 7680);
 }
+
 
 static char *set_int_0_to_200(const char *arg, int *i)
 {
     return set_int_range(arg, i, 0, 200);
 }
 
+
 static char *set_int_32_to_63(const char *arg, int *i)
 {
     return set_int_range(arg, i, 32, 63);
 }
+
 
 static char *set_int_22_to_75(const char *arg, int *i)
 {
     return set_int_range(arg, i, 22, 75);
 }
 
+
 static char *set_int_42_to_85(const char *arg, int *i)
 {
     return set_int_range(arg, i, 42, 85);
 }
+
 
 static char *set_int_22_to_55(const char *arg, int *i)
 {
     return set_int_range(arg, i, 22, 55);
 }
 
+
 static char *set_int_42_to_65(const char *arg, int *i)
 {
     return set_int_range(arg, i, 42, 62);
 }
+
 
 static char *set_int_1_to_10(const char *arg, int *i)
 {
@@ -843,8 +925,11 @@ static char *add_serial(char *arg)
 void get_intrange(char *arg, int *val1, int *val2)
 {
     if (sscanf(arg, "%d-%d", val1, val2) == 1)
+    {
         *val2 = *val1;
+    }
 }
+
 
 static char *set_balance(enum pool_strategy *strategy)
 {
@@ -852,17 +937,20 @@ static char *set_balance(enum pool_strategy *strategy)
     return NULL;
 }
 
+
 static char *set_loadbalance(enum pool_strategy *strategy)
 {
     *strategy = POOL_LOADBALANCE;
     return NULL;
 }
 
+
 static char *set_rotate(const char *arg, char __maybe_unused *i)
 {
     pool_strategy = POOL_ROTATE;
     return set_int_range(arg, &opt_rotate_period, 0, 9999);
 }
+
 
 static char *set_rr(enum pool_strategy *strategy)
 {
@@ -877,7 +965,9 @@ bool detect_stratum(struct pool *pool, char *url)
 
 
     if (!extract_sockaddr(url, &pool->sockaddr_url, &pool->stratum_port))
+    {
         return false;
+    }
 
     if (!strncasecmp(url, "stratum+tcp://", 14))
     {
@@ -890,34 +980,47 @@ bool detect_stratum(struct pool *pool, char *url)
     return false;
 }
 
+
 static struct pool *add_url(void)
 {
     total_urls++;
+
     if (total_urls > total_pools)
+    {
         add_pool();
+    }
+
     return pools[total_urls - 1];
 }
+
 
 static char *setup_url(struct pool *pool, char *arg)
 {
     arg = get_proxy(arg, pool);
 
     if (detect_stratum(pool, arg))
+    {
         goto out;
+    }
 
     opt_set_charp(arg, &pool->rpc_url);
-    if (strncmp(arg, "http://", 7) &&
-        strncmp(arg, "https://", 8))
+
+    if (strncmp(arg, "http://", 7) && strncmp(arg, "https://", 8))
     {
         char *httpinput;
 
         httpinput = cgmalloc(256);
+
         strcpy(httpinput, "stratum+tcp://");
         strncat(httpinput, arg, 242);
+
         detect_stratum(pool, httpinput);
     }
+
     out:
+
     return pool->rpc_url;
+
 }
 
 static char *set_url(char *arg)
@@ -925,13 +1028,16 @@ static char *set_url(char *arg)
     struct pool *pool = add_url();
 
     setup_url(pool, arg);
-    if (strstr(pool->rpc_url, ".nicehash.com") || strstr(pool->rpc_url, "#xnsub")) {
-        		pool->extranonce_subscribe = true;
-        		applog(LOG_DEBUG, "Pool %d extranonce subscribing enabled.", pool->pool_no);
-        	}
+
+    if (strstr(pool->rpc_url, ".nicehash.com") || strstr(pool->rpc_url, "#xnsub"))
+    {
+        pool->extranonce_subscribe = true;
+        applog(LOG_DEBUG, "Pool %d extranonce subscribing enabled.", pool->pool_no);
+    }
 
     return NULL;
 }
+
 
 static char *set_quota(char *arg)
 {
@@ -940,18 +1046,33 @@ static char *set_quota(char *arg)
     struct pool *pool;
 
     if (!semicolon)
+    {
         return "No semicolon separated quota;URL pair found";
-    len = strlen(arg);
+    }
+
+    len        = strlen(arg);
     *semicolon = '\0';
-    qlen = strlen(arg);
+    qlen       = strlen(arg);
+
     if (!qlen)
+    {
         return "No parameter for quota found";
+    }
+
     len -= qlen + 1;
+
     if (len < 1)
+    {
         return "No parameter for URL found";
+    }
+
     quota = atoi(arg);
+
     if (quota < 0)
+    {
         return "Invalid negative parameter for quota set";
+    }
+
     url = arg + qlen + 1;
     pool = add_url();
     setup_url(pool, url);
@@ -967,10 +1088,15 @@ static char *set_user(const char *arg)
     struct pool *pool;
 
     if (total_userpasses)
+    {
         return "Use only user + pass or userpass, but not both";
+    }
     total_users++;
+
     if (total_users > total_pools)
+    {
         add_pool();
+    }
 
     pool = pools[total_users - 1];
     opt_set_charp(arg, &pool->rpc_user);
@@ -978,15 +1104,22 @@ static char *set_user(const char *arg)
     return NULL;
 }
 
+
 static char *set_pass(const char *arg)
 {
     struct pool *pool;
 
     if (total_userpasses)
+    {
         return "Use only user + pass or userpass, but not both";
+    }
+
     total_passes++;
+
     if (total_passes > total_pools)
+    {
         add_pool();
+    }
 
     pool = pools[total_passes - 1];
     opt_set_charp(arg, &pool->rpc_pass);
@@ -1000,20 +1133,36 @@ static char *set_userpass(const char *arg)
     char *updup;
 
     if (total_users || total_passes)
-        return "Use only user + pass or userpass, but not both";
-    total_userpasses++;
-    if (total_userpasses > total_pools)
-        add_pool();
+    {
 
-    pool = pools[total_userpasses - 1];
+        return "Use only user + pass or userpass, but not both";
+    }
+
+    total_userpasses++;
+
+    if (total_userpasses > total_pools)
+    {
+        add_pool();
+    }
+
+    pool  = pools[total_userpasses - 1];
     updup = strdup(arg);
+
     opt_set_charp(arg, &pool->rpc_userpass);
+
     pool->rpc_user = strtok(updup, ":");
+
     if (!pool->rpc_user)
+    {
         return "Failed to find : delimited user info";
+    }
+
     pool->rpc_pass = strtok(NULL, ":");
+
     if (!pool->rpc_pass)
+    {
         pool->rpc_pass = strdup("");
+    }
 
     return NULL;
 }
@@ -1023,8 +1172,11 @@ static char *set_extranonce_subscribe(char *arg)
 	struct pool *pool;
 
 	total_extranonce++;
+
 	if (total_extranonce > total_pools)
-		add_pool();
+    {
+        add_pool();
+    }
 
 	pool = pools[total_extranonce - 1];
 	applog(LOG_DEBUG, "Enable extranonce subscribe on %d", pool->pool_no);
@@ -1042,23 +1194,33 @@ static char *enable_debug(bool *flag)
     return NULL;
 }
 
+
 static char *opt_set_sched_start;
 static char *opt_set_sched_stop;
+
 
 static char *set_schedtime(const char *arg, struct schedtime *st)
 {
     if (sscanf(arg, "%d:%d", &st->tm.tm_hour, &st->tm.tm_min) != 2)
+    {
         return "Invalid time set, should be HH:MM";
+    }
+
     if (st->tm.tm_hour > 23 || st->tm.tm_min > 59 || st->tm.tm_hour < 0 || st->tm.tm_min < 0)
+    {
         return "Invalid time set.";
+    }
+
     st->enable = true;
     return NULL;
 }
+
 
 static char *set_sched_start(const char *arg)
 {
     return set_schedtime(arg, &schedstart);
 }
+
 
 static char *set_sched_stop(const char *arg)
 {
@@ -1081,17 +1243,22 @@ static char* set_sharelog(char *arg)
     {
         sharelog_file = stdout;
         if (!sharelog_file)
+        {
             applog(LOG_ERR, "Standard output missing for share log");
+        }
     }
     else
     {
         sharelog_file = fopen(arg, "a");
         if (!sharelog_file)
+        {
             applog(LOG_ERR, "Failed to open %s for share log", arg);
+        }
     }
 
     return NULL;
 }
+
 
 static char *temp_cutoff_str = NULL;
 static char __maybe_unused *opt_set_temp_cutoff;
@@ -1101,10 +1268,15 @@ char *set_temp_cutoff(char *arg)
     int val;
 
     if (!(arg && arg[0]))
+    {
         return "Invalid parameters for set temp cutoff";
+    }
     val = atoi(arg);
+
     if (val < 0 || val > 200)
+    {
         return "Invalid value passed to set temp cutoff";
+    }
     temp_cutoff_str = arg;
 
     return NULL;
@@ -1120,10 +1292,16 @@ static void load_temp_cutoffs()
         for (device = 0, nextptr = strtok(temp_cutoff_str, ","); nextptr; ++device, nextptr = strtok(NULL, ","))
         {
             if (device >= total_devices)
+            {
                 quit(1, "Too many values passed to set temp cutoff");
+            }
+
             val = atoi(nextptr);
+
             if (val < 0 || val > 200)
+            {
                 quit(1, "Invalid value passed to set temp cutoff");
+            }
 
             rd_lock(&devices_lock);
             devices[device]->cutofftemp = val;
@@ -1133,23 +1311,31 @@ static void load_temp_cutoffs()
     else
     {
         rd_lock(&devices_lock);
+
         for (i = device; i < total_devices; ++i)
         {
             if (!devices[i]->cutofftemp)
+            {
                 devices[i]->cutofftemp = opt_cutofftemp;
+            }
         }
         rd_unlock(&devices_lock);
 
         return;
     }
+
     if (device <= 1)
     {
         rd_lock(&devices_lock);
+
         for (i = device; i < total_devices; ++i)
+        {
             devices[i]->cutofftemp = val;
+        }
         rd_unlock(&devices_lock);
     }
 }
+
 
 static char *set_logfile_path(const char *arg)
 {
@@ -1158,12 +1344,14 @@ static char *set_logfile_path(const char *arg)
     return NULL;
 }
 
+
 static char *set_logfile_openflag(const char *arg)
 {
     opt_set_charp(arg, &opt_logfile_openflag);
 
     return NULL;
 }
+
 
 static char *set_logwork_path(const char *arg)
 {
@@ -1172,6 +1360,7 @@ static char *set_logwork_path(const char *arg)
     return NULL;
 }
 
+
 static char *set_logwork_asicnum(const char *arg)
 {
     opt_set_charp(arg, &opt_logwork_asicnum);
@@ -1179,15 +1368,20 @@ static char *set_logwork_asicnum(const char *arg)
     return NULL;
 }
 
+
 static char *set_float_125_to_500(const char *arg, float *i)
 {
     char *err = opt_set_floatval(arg, i);
 
     if (err)
+    {
         return err;
+    }
 
     if (*i < 125 || *i > 500)
+    {
         return "Value out of range";
+    }
 
     return NULL;
 }
@@ -1363,12 +1557,12 @@ static struct opt_table opt_config_table[] =
                  "Set frequency"),
 
     OPT_WITH_ARG("--bitmain-voltage",
-    set_int_0_to_9999,opt_show_intval, &opt_bitmain_c5_voltage,
-    "Set voltage"),
+                 set_int_0_to_9999,opt_show_intval, &opt_bitmain_c5_voltage,
+                 "Set voltage"),
 
     OPT_WITHOUT_ARG("--bitmain-use-vil",
-    opt_set_bool, &opt_bitmain_new_cmd_type_vil,
-    "Set bitmain miner use vil mode"),
+                    opt_set_bool, &opt_bitmain_new_cmd_type_vil,
+                    "Set bitmain miner use vil mode"),
 
 #endif
 
@@ -1613,6 +1807,7 @@ static struct opt_table opt_config_table[] =
     OPT_WITH_ARG("--multi-version-mining",
                  opt_set_intval, NULL, &opt_multi_version,
                  "Multi version mining!"),
+
 #ifdef HAVE_SYSLOG_H
     OPT_WITHOUT_ARG("--syslog",
     opt_set_bool, &use_syslog,
@@ -1679,7 +1874,9 @@ static char *parse_config(json_t *config, bool fileconf)
     json_t *val;
 
     if (fileconf && !fileconf_load)
+    {
         fileconf_load = 1;
+    }
 
     for (opt = opt_config_table; opt->type != OPT_END; opt++)
     {
@@ -1689,7 +1886,9 @@ static char *parse_config(json_t *config, bool fileconf)
         assert(!(opt->type & OPT_SUBTABLE));
 
         if (!opt->names)
+        {
             continue;
+        }
 
         /* Pull apart the option name(s). */
         name = strdup(opt->names);
@@ -1699,18 +1898,26 @@ static char *parse_config(json_t *config, bool fileconf)
 
             /* Ignore short options. */
             if (p[1] != '-')
+            {
                 continue;
+            }
 
             val = json_object_get(config, p+2);
+
             if (!val)
+            {
                 continue;
+            }
 
             if ((opt->type & (OPT_HASARG | OPT_PROCESSARG)) && json_is_string(val))
             {
                 str = json_string_value(val);
                 err = opt->cb_arg(str, opt->u.arg);
+
                 if (opt->type == OPT_PROCESSARG)
+                {
                     opt_set_charp(str, opt->u.arg);
+                }
             }
             else if ((opt->type & (OPT_HASARG | OPT_PROCESSARG)) && json_is_array(val))
             {
@@ -1723,19 +1930,30 @@ static char *parse_config(json_t *config, bool fileconf)
                     {
                         str = json_string_value(arr_val);
                         err = opt->cb_arg(str, opt->u.arg);
+
                         if (opt->type == OPT_PROCESSARG)
+                        {
                             opt_set_charp(str, opt->u.arg);
+                        }
                     }
                     else if (json_is_object(arr_val))
+                    {
                         err = parse_config(arr_val, false);
+                    }
                     if (err)
+                    {
                         break;
+                    }
                 }
             }
             else if ((opt->type & OPT_NOARG) && json_is_true(val))
+            {
                 err = opt->cb(opt->u.arg);
+            }
             else
+            {
                 err = "Invalid value";
+            }
 
             if (err)
             {
@@ -1755,12 +1973,16 @@ static char *parse_config(json_t *config, bool fileconf)
                 }
             }
         }
+
         free(name);
     }
 
     val = json_object_get(config, JSON_INCLUDE_CONF);
+
     if (val && json_is_string(val))
+    {
         return load_config(json_string_value(val), NULL);
+    }
 
     return NULL;
 }
@@ -1801,16 +2023,21 @@ static char *load_config(const char *arg, void __maybe_unused *unused)
 #endif
 
     if (!cnfbuf)
+    {
         cnfbuf = strdup(arg);
+    }
 
     if (++include_count > JSON_MAX_DEPTH)
+    {
         return JSON_MAX_DEPTH_ERR;
+    }
 
     config = json_load_file(arg, 0, &err);
+
     if (!json_is_object(config))
     {
         siz = JSON_LOAD_ERROR_LEN + strlen(arg) + strlen(err.text);
-json_error = cgmalloc(siz);
+        json_error = cgmalloc(siz);
         snprintf(json_error, siz, JSON_LOAD_ERROR, arg, err.text);
         return json_error;
     }
@@ -1822,12 +2049,14 @@ json_error = cgmalloc(siz);
     return parse_config(config, true);
 }
 
+
 static char *set_default_config(const char *arg)
 {
     opt_set_charp(arg, &default_config);
 
     return NULL;
 }
+
 
 void default_save_file(char *filename);
 
@@ -1838,7 +2067,9 @@ static void load_default_config(void)
     default_save_file(cnfbuf);
 
     if (!access(cnfbuf, R_OK))
+    {
         load_config(cnfbuf, NULL);
+    }
     else
     {
         free(cnfbuf);
@@ -1879,25 +2110,26 @@ char *display_devs(int *ndevs)
 /* These options are available from commandline only */
 static struct opt_table opt_cmdline_table[] =
 {
-    OPT_WITH_ARG("--config|-c",
-    load_config, NULL, &opt_set_null,
-    "Load a JSON-format configuration file\n"
-    "See example.conf for an example configuration."),
-    OPT_WITH_ARG("--default-config",
-    set_default_config, NULL, &opt_set_null,
-    "Specify the filename of the default config file\n"
-    "Loaded at start and used when saving without a name."),
-    OPT_WITHOUT_ARG("--help|-h",
-    opt_verusage_and_exit, NULL,
-    "Print this message"),
+    OPT_WITH_ARG("--config|-c", load_config, NULL, &opt_set_null,
+                 "Load a JSON-format configuration file\n"
+                         "See example.conf for an example configuration."),
+
+    OPT_WITH_ARG("--default-config", set_default_config, NULL, &opt_set_null,
+                 "Specify the filename of the default config file\n"
+                         "Loaded at start and used when saving without a name."),
+
+    OPT_WITHOUT_ARG("--help|-h", opt_verusage_and_exit, NULL,
+                    "Print this message"),
+
 #if defined(USE_USBUTILS)
     OPT_WITHOUT_ARG("--ndevs|-n",
     display_devs, &nDevs,
     "Display all USB devices and exit"),
 #endif
     OPT_WITHOUT_ARG("--version|-V",
-    opt_version_and_exit, packagename,
-    "Display version and exit"),
+                    opt_version_and_exit, packagename,
+                    "Display version and exit"),
+
     OPT_ENDTABLE
 };
 
@@ -1985,9 +2217,10 @@ void _free_work(struct work **workptr, const char *file, const char *func, const
 {
     struct work *work = *workptr;
 
-    if (unlikely(!work)) {
-        applog(LOG_ERR, "Free work called with NULL work from %s %s:%d",
-               file, func, line);
+    if (unlikely(!work))
+    {
+        applog(LOG_ERR, "Free work called with NULL work from %s %s:%d", file, func, line);
+
         return;
     }
 
@@ -2222,8 +2455,12 @@ static bool gbt_decode(struct pool *pool, json_t *res_val)
     hex2bin((unsigned char *)&pool->gbt_bits, bits, 4);
 
     __build_gbt_txns(pool, res_val);
+
 	if (pool->transactions < 3)
+	{
 		pool->bad_work++;
+    }
+
     cg_wunlock(&pool->gbt_lock);
 
     return true;
@@ -2250,6 +2487,7 @@ static bool getwork_decode(json_t *res_val, struct work *work)
         applog(LOG_ERR, "JSON inval target");
         return false;
     }
+
     return true;
 }
 
@@ -2267,14 +2505,17 @@ static void gbt_merkle_bins(struct pool *pool, json_t *transaction_arr)
     int i, j, binleft, binlen;
 
     free(pool->txn_data);
-    pool->txn_data = NULL;
+
+    pool->txn_data     = NULL;
     pool->transactions = 0;
-    pool->merkles = 0;
+    pool->merkles      = 0;
     pool->transactions = json_array_size(transaction_arr);
-    binlen = pool->transactions * 32 + 32;
-    hashbin = alloca(binlen + 32);
+    binlen             = pool->transactions * 32 + 32;
+    hashbin            = alloca(binlen + 32);
+
     memset(hashbin, 0, 32);
     binleft = binlen / 32;
+
     if (pool->transactions)
     {
         int len = 0, ofs = 0;
@@ -2284,6 +2525,7 @@ static void gbt_merkle_bins(struct pool *pool, json_t *transaction_arr)
         {
             arr_val = json_array_get(transaction_arr, i);
             txn = json_string_value(json_object_get(arr_val, "data"));
+
             if (!txn)
             {
                 applog(LOG_ERR, "Pool %d json_string_value fail - cannot find transaction data",
@@ -2307,6 +2549,7 @@ static void gbt_merkle_bins(struct pool *pool, json_t *transaction_arr)
             len = strlen(txn);
 			cg_memcpy(pool->txn_data + ofs, txn, len);
             ofs += len;
+
             if (!hash)
             {
                 unsigned char *txn_bin;
@@ -2320,6 +2563,7 @@ static void gbt_merkle_bins(struct pool *pool, json_t *transaction_arr)
                 gen_hash(txn_bin, hashbin + 32 + 32 * i, txn_len);
                 continue;
             }
+
             if (!hex2bin(binswap, hash, 32))
             {
                 applog(LOG_ERR, "Failed to hex2bin hash in gbt_merkle_bins");
@@ -2333,22 +2577,28 @@ static void gbt_merkle_bins(struct pool *pool, json_t *transaction_arr)
         while (42)
         {
             if (binleft == 1)
+            {
                 break;
+            }
 			cg_memcpy(pool->merklebin + (pool->merkles * 32), hashbin + 32, 32);
             pool->merkles++;
-			if (binleft % 2) {
+			if (binleft % 2)
+			{
 				cg_memcpy(hashbin + binlen, hashbin + binlen - 32, 32);
                 binlen += 32;
                 binleft++;
             }
+
             for (i = 32, j = 64; j < binlen; i += 32, j += 64)
             {
                 gen_hash(hashbin + j, hashbin + i, 64);
             }
+
             binleft /= 2;
             binlen = binleft * 32;
         }
     }
+
     if (opt_debug)
     {
         char hashhex[68];
@@ -2534,12 +2784,15 @@ static bool work_decode(struct pool *pool, struct work *work, json_t *val)
     memset(work->hash, 0, sizeof(work->hash));
 
     cgtime(&work->tv_staged);
+
 out_true:
+
     ret = true;
 
 out:
     return ret;
 }
+
 #else /* HAVE_LIBCURL */
 /* Always true with stratum */
 #define pool_localgen(pool) (true)
@@ -2561,17 +2814,22 @@ void decay_time(double *f, double fadd, double fsecs, double interval)
     double ftotal, fprop;
 
     if (fsecs <= 0)
+    {
         return;
+    }
+
     fprop = 1.0 - 1 / (exp(fsecs / interval));
     ftotal = 1.0 + fprop;
     *f += (fadd / fsecs * fprop);
     *f /= ftotal;
 }
 
+
 static int __total_staged(void)
 {
     return HASH_COUNT(staged_work);
 }
+
 
 static int total_staged(void)
 {
@@ -2587,8 +2845,10 @@ static int total_staged(void)
 #ifdef HAVE_CURSES
 WINDOW *mainwin, *statuswin, *logwin;
 #endif
-double total_secs = 1.0;
+
+double total_secs      = 1.0;
 double last_total_secs = 1.0;
+
 static char statusline[256];
 /* logstart is where the log window should start */
 static int devcursor, logstart, logcursor;
@@ -2624,6 +2884,7 @@ static bool curses_active_locked(void)
  * associated suitable for Mega, Giga etc. Buf array needs to be long enough */
 static void suffix_string(uint64_t val, char *buf, size_t bufsiz, int sigdigits)
 {
+    double dval;
     const double  dkilo = 1000.0;
     const uint64_t kilo = 1000ull;
     const uint64_t mega = 1000000ull;
@@ -2631,9 +2892,11 @@ static void suffix_string(uint64_t val, char *buf, size_t bufsiz, int sigdigits)
     const uint64_t tera = 1000000000000ull;
     const uint64_t peta = 1000000000000000ull;
     const uint64_t exa  = 1000000000000000000ull;
+
     char suffix[2] = "";
-    bool decimal = true;
-    double dval;
+    bool decimal   = true;
+
+
 
     if (val >= exa)
     {
@@ -2679,9 +2942,13 @@ static void suffix_string(uint64_t val, char *buf, size_t bufsiz, int sigdigits)
     if (!sigdigits)
     {
         if (decimal)
+        {
             snprintf(buf, bufsiz, "%.3g%s", dval, suffix);
+        }
         else
+        {
             snprintf(buf, bufsiz, "%d%s", (unsigned int)dval, suffix);
+        }
     }
     else
     {
@@ -2699,7 +2966,9 @@ double cgpu_runtime(struct cgpu_info *cgpu)
     double dev_runtime;
 
     if (cgpu->dev_start_tv.tv_sec == 0)
+    {
         dev_runtime = total_secs;
+    }
     else
     {
         cgtime(&now);
@@ -2707,9 +2976,12 @@ double cgpu_runtime(struct cgpu_info *cgpu)
     }
 
     if (dev_runtime < 1.0)
+    {
         dev_runtime = 1.0;
+    }
     return dev_runtime;
 }
+
 
 double tsince_restart(void)
 {
@@ -2719,6 +2991,7 @@ double tsince_restart(void)
     return tdiff(&now, &restart_tv_start);
 }
 
+
 double tsince_update(void)
 {
     struct timeval now;
@@ -2726,6 +2999,7 @@ double tsince_update(void)
     cgtime(&now);
     return tdiff(&now, &update_tv_start);
 }
+
 
 static void get_statline(char *buf, size_t bufsiz, struct cgpu_info *cgpu)
 {
@@ -2744,6 +3018,7 @@ static void get_statline(char *buf, size_t bufsiz, struct cgpu_info *cgpu)
 
     snprintf(buf, bufsiz, "%s%d ", cgpu->drv->name, cgpu->device_id);
     cgpu->drv->get_statline_before(buf, bufsiz, cgpu);
+
     tailsprintf(buf, bufsiz, "(%ds):%s (avg):%sh/s | A:%.0f R:%.0f HW:%d WU:%.1f/m",
                 opt_log_interval,
                 displayed_rolling,
@@ -2752,8 +3027,10 @@ static void get_statline(char *buf, size_t bufsiz, struct cgpu_info *cgpu)
                 cgpu->diff_rejected,
                 cgpu->hw_errors,
                 wu);
+
     cgpu->drv->get_statline(buf, bufsiz, cgpu);
 }
+
 
 static bool shared_strategy(void)
 {
@@ -2951,7 +3228,9 @@ static void curses_print_devstatus(struct cgpu_info *cgpu, int devno, int count)
             adj_fwidth(cgpu->diff_accepted, &dawidth);
             adj_fwidth(cgpu->diff_rejected, &drwidth);
             adj_width(cgpu->hw_errors, &hwwidth);
-            cg_wprintw(statuswin, "A:%*.0f R:%*.0f HW:%*d",
+
+            cg_wprintw(statuswin,
+                       "A:%*.0f R:%*.0f HW:%*d",
                        dawidth, cgpu->diff_accepted,
                        drwidth, cgpu->diff_rejected,
                        hwwidth, cgpu->hw_errors);
@@ -3003,10 +3282,15 @@ static void check_winsizes(void)
 
         erase();
         x = getmaxx(statuswin);
+
         if (logstart > LINES - 2)
+        {
             statusy = LINES - 2;
+        }
         else
+         {
             statusy = logstart;
+         }
         logcursor = statusy;
         wresize(statuswin, statusy, x);
         getmaxyx(mainwin, y, x);
@@ -3022,7 +3306,8 @@ static void enable_curses_windows(void);
 
 static void switch_logsize(bool __maybe_unused newdevs)
 {
-	if (curses_active_locked()) {
+	if (curses_active_locked())
+	{
         if (opt_compact)
         {
             logstart = devcursor + 1;
@@ -3033,6 +3318,7 @@ static void switch_logsize(bool __maybe_unused newdevs)
             logstart = devcursor + most_devices + 1;
             logcursor = logstart + 1;
         }
+
         unlock_curses();
         check_winsizes();
     }
@@ -3043,6 +3329,7 @@ void _wlog(const char *str)
 {
     wprintw(logwin, "%s", str);
 }
+
 
 /* Mandatory printing */
 void _wlogprint(const char *str)
@@ -3121,7 +3408,10 @@ static void disable_pool(struct pool *pool)
 static void reject_pool(struct pool *pool)
 {
     if (pool->enabled == POOL_ENABLED)
+    {
         enabled_pools--;
+    }
+
     pool->enabled = POOL_REJECTING;
 }
 
@@ -3130,9 +3420,15 @@ static void restart_threads(void);
 /* Theoretically threads could race when modifying accepted and
  * rejected values but the chance of two submits completing at the
  * same time is zero so there is no point adding extra locking */
-static void
-share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
-             char *hashshow, bool resubmit, char *worktime)
+static void share_result(
+        json_t *val,
+        json_t *res,
+        json_t *err,
+        const struct work *work,
+        char *hashshow,
+        bool resubmit,
+        char *worktime
+)
 {
     struct pool *pool = work->pool;
     struct cgpu_info *cgpu;
@@ -3142,31 +3438,41 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
     if (json_is_true(res) || (work->gbt && json_is_null(res)))
     {
         mutex_lock(&stats_lock);
+
         cgpu->accepted++;
         total_accepted++;
         pool->accepted++;
+
         cgpu->diff_accepted += work->work_difficulty;
         total_diff_accepted += work->work_difficulty;
         pool->diff_accepted += work->work_difficulty;
+
         mutex_unlock(&stats_lock);
 
-        pool->seq_rejects = 0;
-        cgpu->last_share_pool = pool->pool_no;
+        pool->seq_rejects          = 0;
+        cgpu->last_share_pool      = pool->pool_no;
         cgpu->last_share_pool_time = time(NULL);
-        cgpu->last_share_diff = work->work_difficulty;
-        pool->last_share_time = cgpu->last_share_pool_time;
-        pool->last_share_diff = work->work_difficulty;
+        cgpu->last_share_diff      = work->work_difficulty;
+        pool->last_share_time      = cgpu->last_share_pool_time;
+        pool->last_share_diff      = work->work_difficulty;
+
         applog(LOG_DEBUG, "PROOF OF WORK RESULT: true (yay!!!)");
+
         if (!QUIET)
         {
             if (total_pools > 1)
+            {
                 applog(LOG_NOTICE, "Accepted %s %s %d pool %d %s%s",
                        hashshow, cgpu->drv->name, cgpu->device_id, work->pool->pool_no, resubmit ? "(resubmit)" : "", worktime);
+            }
             else
+            {
                 applog(LOG_NOTICE, "Accepted %s %s %d %s%s",
                        hashshow, cgpu->drv->name, cgpu->device_id, resubmit ? "(resubmit)" : "", worktime);
+            }
         }
         sharelog("accept", work);
+
         if (opt_shares && total_diff_accepted >= opt_shares)
         {
             applog(LOG_WARNING, "Successfully mined %d accepted shares as requested and exiting.", opt_shares);
@@ -3184,10 +3490,13 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
             enable_pool(pool);
             switch_pools(NULL);
         }
+
         /* If we know we found the block we know better than anyone
          * that new work is needed. */
         if (unlikely(work->block))
+        {
             restart_threads();
+        }
     }
     else
     {
@@ -3202,6 +3511,7 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
         mutex_unlock(&stats_lock);
 
         applog(LOG_DEBUG, "PROOF OF WORK RESULT: false (booooo)");
+
         if (!QUIET)
         {
             char where[20];
@@ -3209,28 +3519,45 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
             char reason[32];
 
             strcpy(reason, "");
+
             if (total_pools > 1)
+            {
                 snprintf(where, sizeof(where), "pool %d", work->pool->pool_no);
+            }
             else
+            {
                 strcpy(where, "");
+            }
 
             if (!work->gbt)
+            {
                 res = json_object_get(val, "reject-reason");
+            }
+
             if (res)
             {
                 const char *reasontmp = json_string_value(res);
 
                 size_t reasonLen = strlen(reasontmp);
+
                 if (reasonLen > 28)
+                {
                     reasonLen = 28;
+                }
+
                 reason[0] = ' ';
                 reason[1] = '(';
+
                 cg_memcpy(2 + reason, reasontmp, reasonLen);
+
                 reason[reasonLen + 2] = ')';
                 reason[reasonLen + 3] = '\0';
+
                 cg_memcpy(disposition + 7, reasontmp, reasonLen);
                 disposition[6] = ':'; disposition[reasonLen + 7] = '\0';
-            } else if (work->stratum && err) {
+            }
+            else if (work->stratum && err)
+            {
                 if (json_is_array(err))
                 {
                     json_t *reason_val = json_array_get(err, 1);
@@ -3249,8 +3576,15 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
                 }
             }
 
-            applog(LOG_NOTICE, "Rejected %s %s %d %s%s %s%s",
-                   hashshow, cgpu->drv->name, cgpu->device_id, where, reason, resubmit ? "(resubmit)" : "", worktime);
+            applog(LOG_NOTICE,
+                   "Rejected %s %s %d %s%s %s%s",
+                   hashshow,
+                   cgpu->drv->name,
+                   cgpu->device_id,
+                   where,
+                   reason,
+                   resubmit ? "(resubmit)" : "", worktime);
+
             sharelog(disposition, work);
         }
 
@@ -3266,16 +3600,20 @@ share_result(json_t *val, json_t *res, json_t *err, const struct work *work,
 
             if (pool->seq_rejects > utility * 3 && enabled_pools > 1)
             {
-                applog(LOG_WARNING, "Pool %d rejected %d sequential shares, disabling!",
-                       pool->pool_no, pool->seq_rejects);
+                applog(LOG_WARNING, "Pool %d rejected %d sequential shares, disabling!", pool->pool_no, pool->seq_rejects);
                 reject_pool(pool);
+
                 if (pool == current_pool())
+                {
                     switch_pools(NULL);
+                }
+
                 pool->seq_rejects = 0;
             }
         }
     }
 }
+
 
 static void show_hash(struct work *work, char *hashshow)
 {
@@ -3287,14 +3625,19 @@ static void show_hash(struct work *work, char *hashshow)
     int ofs;
 
     swab256(rhash, work->hash);
+
     for (ofs = 0; ofs <= 28; ofs ++)
     {
         if (rhash[ofs])
+        {
             break;
+        }
     }
-    hash32 = (uint32_t *)(rhash + ofs);
-    h32 = be32toh(*hash32);
+
+    hash32   = (uint32_t *)(rhash + ofs);
+    h32      = be32toh(*hash32);
     uintdiff = round(work->work_difficulty);
+
     suffix_string(work->share_diff, diffdisp, sizeof (diffdisp), 0);
     snprintf(hashshow, 64, "%08lx Diff %s/%"PRIu64"%s", h32, diffdisp, uintdiff,
              work->block? " BLOCK!" : "");
@@ -3561,11 +3904,19 @@ static bool get_upstream_work(struct work *work, CURL *curl)
 static bool pool_unusable(struct pool *pool)
 {
     if (pool->idle)
+    {
         return true;
+    }
+
     if (pool->enabled != POOL_ENABLED)
+    {
         return true;
+    }
+
     if (pool->has_stratum && (!pool->stratum_active || !pool->stratum_notify))
+    {
         return true;
+    }
     return false;
 }
 
@@ -3584,7 +3935,10 @@ static struct pool *select_balanced(struct pool *cp)
         struct pool *pool = pools[i];
 
         if (pool_unusable(pool))
+        {
             continue;
+        }
+
         if (pool->shares < lowest)
         {
             lowest = pool->shares;
@@ -3597,6 +3951,7 @@ static struct pool *select_balanced(struct pool *cp)
 }
 
 static struct pool *priority_pool(int choice);
+
 
 /* Select any active pool in a rotating fashion when loadbalance is chosen if
  * it has any quota left. */
@@ -3615,12 +3970,15 @@ static inline struct pool *select_pool(void)
         goto out;
     }
 
-    if (pool_strategy != POOL_LOADBALANCE) {
+    if (pool_strategy != POOL_LOADBALANCE)
+    {
         pool = cp;
         goto out;
     }
     else
+    {
         pool = NULL;
+    }
 
     for (i = 0; i < total_pools; i++)
     {
@@ -3637,24 +3995,37 @@ static inline struct pool *select_pool(void)
     if (!avail)
     {
         for (i = 0; i < total_pools; i++)
+        {
             pools[i]->quota_used = 0;
+        }
+
         if (++rotating_pool >= total_pools)
+        {
             rotating_pool = 0;
+        }
     }
 
     /* Try to find the first pool in the rotation that is usable */
     tested = 0;
+
     while (!pool && tested++ < total_pools)
     {
         pool = pools[rotating_pool];
+
         if (pool->quota_used++ < pool->quota_gcd)
         {
             if (!pool_unusable(pool))
+            {
                 break;
+            }
         }
+
         pool = NULL;
+
         if (++rotating_pool >= total_pools)
+        {
             rotating_pool = 0;
+        }
     }
 
     /* If there are no alive pools with quota, choose according to
@@ -3675,19 +4046,24 @@ static inline struct pool *select_pool(void)
 
     /* If still nothing is usable, use the current pool */
     if (!pool)
+    {
         pool = cp;
+    }
 out:
+
     applog(LOG_DEBUG, "Selecting pool %d for work", pool->pool_no);
     return pool;
 }
+
 
 /* truediffone == 0x00000000FFFF0000000000000000000000000000000000000000000000000000
  * Generate a 256 bit binary LE target by cutting up diff into 64 bit sized
  * portions or vice versa. */
 static const double truediffone = 26959535291011309493156476344723991336010898738574164086137773096960.0;
-static const double bits192 = 6277101735386680763835789423207666416102355444464034512896.0;
-static const double bits128 = 340282366920938463463374607431768211456.0;
-static const double bits64 = 18446744073709551616.0;
+static const double bits192     = 6277101735386680763835789423207666416102355444464034512896.0;
+static const double bits128     = 340282366920938463463374607431768211456.0;
+static const double bits64      = 18446744073709551616.0;
+
 
 /* Converts a little endian 256 bit value to a double */
 static double le256todouble(const void *target)
@@ -3698,17 +4074,18 @@ static double le256todouble(const void *target)
     data64 = (uint64_t *)(target + 24);
     dcut64 = le64toh(*data64) * bits192;
 
-    data64 = (uint64_t *)(target + 16);
+    data64  = (uint64_t *)(target + 16);
     dcut64 += le64toh(*data64) * bits128;
 
-    data64 = (uint64_t *)(target + 8);
+    data64  = (uint64_t *)(target + 8);
     dcut64 += le64toh(*data64) * bits64;
 
-    data64 = (uint64_t *)(target);
+    data64  = (uint64_t *)(target);
     dcut64 += le64toh(*data64);
 
     return dcut64;
 }
+
 
 static double diff_from_target(void *target)
 {
@@ -3716,8 +4093,12 @@ static double diff_from_target(void *target)
 
     d64 = truediffone;
     dcut64 = le256todouble(target);
+
     if (unlikely(!dcut64))
+    {
         dcut64 = 1;
+    }
+
     return d64 / dcut64;
 }
 
@@ -3731,9 +4112,13 @@ static void calc_diff(struct work *work, double known)
     uint64_t uintdiff;
 
     if (known)
+    {
         work->work_difficulty = known;
+    }
     else
+    {
         work->work_difficulty = diff_from_target(work->target);
+    }
 
     difficulty = work->work_difficulty;
 
@@ -3742,7 +4127,9 @@ static void calc_diff(struct work *work, double known)
     suffix_string(uintdiff, work->pool->diff, sizeof(work->pool->diff), 0);
 
     if (difficulty == pool_stats->min_diff)
+    {
         pool_stats->min_diff_count++;
+    }
     else if (difficulty < pool_stats->min_diff || pool_stats->min_diff == 0)
     {
         pool_stats->min_diff = difficulty;
@@ -3750,13 +4137,16 @@ static void calc_diff(struct work *work, double known)
     }
 
     if (difficulty == pool_stats->max_diff)
+    {
         pool_stats->max_diff_count++;
+    }
     else if (difficulty > pool_stats->max_diff)
     {
         pool_stats->max_diff = difficulty;
         pool_stats->max_diff_count = 1;
     }
 }
+
 
 static unsigned char bench_hidiff_bins[16][160];
 static unsigned char bench_lodiff_bins[16][160];
@@ -3775,6 +4165,7 @@ static void get_benchmark_work(struct work *work)
     copy_time(&work->tv_getwork_reply, &work->tv_getwork);
     work->getwork_mode = GETWORK_MODE_BENCHMARK;
 }
+
 
 static void benchfile_dspwork(struct work *work, uint32_t nonce)
 {
@@ -3806,17 +4197,25 @@ static bool benchfile_get_work(struct work *work)
     if (!benchfile_in)
     {
         if (opt_benchfile)
+        {
             benchfile_in = fopen(opt_benchfile, "r");
+        }
         else
+        {
             quit(1, "BENCHFILE Invalid benchfile NULL");
+        }
 
         if (!benchfile_in)
+        {
             quit(1, "BENCHFILE Failed to open benchfile '%s'", opt_benchfile);
+        }
 
         benchfile_line = 0;
 
         if (!fgets(buf, 1024, benchfile_in))
+        {
             quit(1, "BENCHFILE Failed to read benchfile '%s'", opt_benchfile);
+        }
 
         got = true;
         benchfile_work = 0;
@@ -3846,9 +4245,11 @@ static bool benchfile_get_work(struct work *work)
             long nonce_time;
 
             commas[0] = buf;
+
             for (i = 1; i < BENCHWORK_COUNT; i++)
             {
                 commas[i] = strchr(commas[i-1], ',');
+
                 if (!commas[i])
                 {
                     quit(1, "BENCHFILE Invalid input file line %d"
@@ -3871,6 +4272,7 @@ static bool benchfile_get_work(struct work *work)
 
             // NonceTime may have LF's etc
             len = strlen(commas[BENCHWORK_NONCETIME]);
+
             if (len < benchfile_data[BENCHWORK_NONCETIME].length)
             {
                 quit(1, "BENCHFILE Invalid input file line %d field %d"
@@ -3883,6 +4285,7 @@ static bool benchfile_get_work(struct work *work)
             sprintf(item, "0000000%c", commas[BENCHWORK_VERSION][0]);
 
             j = strlen(item);
+
             for (i = benchfile_data[BENCHWORK_PREVHASH].length-8; i >= 0; i -= 8)
             {
                 sprintf(&(item[j]), "%.8s", &commas[BENCHWORK_PREVHASH][i]);
@@ -3914,14 +4317,19 @@ static bool benchfile_get_work(struct work *work)
             return true;
         }
     }
+
     while (fgets(buf, 1024, benchfile_in));
 
     if (benchfile_work == 0)
+    {
         quit(1, "BENCHFILE No work in benchfile '%s'", opt_benchfile);
+    }
+
     fclose(benchfile_in);
     benchfile_in = NULL;
     return benchfile_get_work(work);
 }
+
 
 static void get_benchfile_work(struct work *work)
 {
@@ -3933,6 +4341,7 @@ static void get_benchfile_work(struct work *work)
     work->getwork_mode = GETWORK_MODE_BENCHMARK;
     calc_diff(work, 0);
 }
+
 
 #ifdef HAVE_CURSES
 static void disable_curses_windows(void)
@@ -3973,10 +4382,12 @@ static void disable_curses(void)
 }
 #endif
 
+
 static void kill_timeout(struct thr_info *thr)
 {
     cg_completion_timeout(&thr_info_cancel, thr, 1000);
 }
+
 
 static void kill_mining(void)
 {
@@ -3990,16 +4401,21 @@ static void kill_mining(void)
         pthread_t *pth = NULL;
 
         thr = get_thread(i);
+
         if (thr && PTH(thr) != 0L)
+        {
             pth = &thr->pth;
+        }
+
+// TODO:
+
         thr_info_cancel(thr);
-#ifndef WIN32
+
         if (pth && *pth)
+        {
             pthread_join(*pth, NULL);
-#else
-        if (pth && pth->p)
-            pthread_join(*pth, NULL);
-#endif
+        }
+
     }
 }
 
@@ -4032,16 +4448,23 @@ static void __kill_work(void)
     kill_timeout(thr);
 
     forcelog(LOG_DEBUG, "Shutting down mining threads");
+
     for (i = 0; i < mining_threads; i++)
     {
         struct cgpu_info *cgpu;
 
         thr = get_thread(i);
+
         if (!thr)
+        {
             continue;
+        }
         cgpu = thr->cgpu;
+
         if (!cgpu)
+        {
             continue;
+        }
 
         cgpu->shutdown = true;
     }
@@ -4068,6 +4491,7 @@ static void __kill_work(void)
 
 }
 
+
 /* This should be the common exit path */
 void kill_work(void)
 {
@@ -4080,6 +4504,7 @@ static
 char **initial_args;
 
 static void clean_up(bool restarting);
+
 
 void app_restart(void)
 {
@@ -4104,6 +4529,7 @@ void app_restart(void)
     applog(LOG_WARNING, "Failed to restart application");
 }
 
+
 static void sighandler(int __maybe_unused sig)
 {
     /* Restore signal handlers so we can still quit if kill_work fails */
@@ -4120,6 +4546,7 @@ static void _stage_work(struct work *work);
     WORK = NULL; \
 } while (0)
 
+
 /* Adjust an existing char ntime field with a relative noffset */
 static void modify_ntime(char *ntime, int noffset)
 {
@@ -4131,6 +4558,7 @@ static void modify_ntime(char *ntime, int noffset)
     *be32 = htobe32(h32);
     __bin2hex(ntime, bin, 4);
 }
+
 
 void roll_work(struct work *work)
 {
@@ -4145,14 +4573,18 @@ void roll_work(struct work *work)
     work->rolls++;
     work->nonce = 0;
     applog(LOG_DEBUG, "Successfully rolled work");
+
     /* Change the ntime field if this is stratum work */
     if (work->ntime)
+    {
         modify_ntime(work->ntime, 1);
+    }
 
     /* This is now a different work item so it needs a different ID for the
      * hashtable */
     work->id = (uint32_t) total_work_inc();
 }
+
 
 struct work *make_clone(struct work *work)
 {
@@ -4160,7 +4592,7 @@ struct work *make_clone(struct work *work)
 
     work_clone->clone = true;
     cgtime(&(work_clone->tv_cloned));
-    work_clone->longpoll = false;
+    work_clone->longpoll  = false;
     work_clone->mandatory = false;
     /* Make cloned work appear slightly older to bias towards keeping the
      * master work item which can be further rolled */
@@ -4168,6 +4600,7 @@ struct work *make_clone(struct work *work)
 
     return work_clone;
 }
+
 
 #ifdef HAVE_LIBCURL
 /* Called with pool_lock held. Recruit an extra curl if none are available for
@@ -4397,7 +4830,7 @@ static char *offset_ntime(const char *ntime, int noffset)
     uint32_t h32, *be32 = (uint32_t *)bin;
 
     hex2bin(bin, ntime, 4);
-    h32 = be32toh(*be32) + noffset;
+    h32   = be32toh(*be32) + noffset;
     *be32 = htobe32(h32);
 
     return bin2hex(bin, 4);
@@ -4414,10 +4847,16 @@ static void _copy_work(struct work *work, const struct work *base_work, int noff
     /* Keep the unique new id assigned during make_work to prevent copied
      * work from having the same id. */
     work->id = id;
+
     if (base_work->job_id)
+    {
         work->job_id = strdup(base_work->job_id);
+    }
+
     if (base_work->nonce1)
+    {
         work->nonce1 = strdup(base_work->nonce1);
+    }
     if (base_work->ntime)
     {
         /* If we are passed an noffset the binary work->data ntime and
@@ -4432,7 +4871,9 @@ static void _copy_work(struct work *work, const struct work *base_work, int noff
             work->ntime = offset_ntime(base_work->ntime, noffset);
         }
         else
+        {
             work->ntime = strdup(base_work->ntime);
+        }
     }
     else if (noffset)
     {
@@ -4442,8 +4883,11 @@ static void _copy_work(struct work *work, const struct work *base_work, int noff
         ntime += noffset;
         *work_ntime = htobe32(ntime);
     }
+
     if (base_work->coinbase)
+    {
         work->coinbase = strdup(base_work->coinbase);
+    }
 //#ifdef USE_BITMAIN_C5
     work->version = base_work->version;
 //#endif
@@ -4454,6 +4898,7 @@ void set_work_ntime(struct work *work, int ntime)  // only for bitfury? set_work
     uint32_t *work_ntime = (uint32_t *)(work->data + 68);
 
     *work_ntime = htobe32(ntime);
+
     if (work->ntime)
     {
         free(work->ntime);
@@ -4479,13 +4924,16 @@ void pool_died(struct pool *pool)
     if (!pool_tset(pool, &pool->idle))
     {
         cgtime(&pool->tv_idle);
+
         if (pool == current_pool())
         {
             applog(LOG_WARNING, "Pool %d %s not responding!", pool->pool_no, pool->rpc_url);
             switch_pools(NULL);
         }
         else
+        {
             applog(LOG_INFO, "Pool %d %s failed to return work", pool->pool_no, pool->rpc_url);
+        }
     }
 }
 
@@ -4497,7 +4945,9 @@ static bool stale_work(struct work *work, bool share)
     int getwork_delay;
 
     if (opt_benchmark || opt_benchfile)
+    {
         return false;
+    }
 
     if (work->work_block != work_block)
     {
@@ -4509,9 +4959,13 @@ static bool stale_work(struct work *work, bool share)
      * advertise a broken expire= that is lower than a meaningful
      * scantime */
     if (work->rolltime > opt_scantime)
+    {
         work_expiry = work->rolltime;
+    }
     else
+    {
         work_expiry = opt_expiry;
+    }
 
     pool = work->pool;
 
@@ -4528,8 +4982,12 @@ static bool stale_work(struct work *work, bool share)
         same_job = true;
 
         cg_rlock(&pool->data_lock);
+
         if (strcmp(work->job_id, pool->swork.job_id))
+        {
             same_job = false;
+        }
+
         cg_runlock(&pool->data_lock);
 
         if (!same_job)
@@ -4543,10 +5001,14 @@ static bool stale_work(struct work *work, bool share)
      * the nearest second */
     getwork_delay = pool->cgminer_pool_stats.getwork_wait_rolling * 5 + 1;
     work_expiry -= getwork_delay;
+
     if (unlikely(work_expiry < 5))
+    {
         work_expiry = 5;
+    }
 
     cgtime(&now);
+
     if ((now.tv_sec - work->tv_staged.tv_sec) >= work_expiry)
     {
         applog(LOG_DEBUG, "Work stale due to expiry");
@@ -4563,6 +5025,7 @@ static bool stale_work(struct work *work, bool share)
     return false;
 }
 
+
 uint64_t share_diff(const struct work *work)
 {
     bool new_best = false;
@@ -4571,24 +5034,34 @@ uint64_t share_diff(const struct work *work)
 
     d64 = truediffone;
     s64 = le256todouble(work->hash);
+
     if (unlikely(!s64))
+    {
         s64 = 0;
+    }
 
     ret = round(d64 / s64);
 
     cg_wlock(&control_lock);
+
     if (unlikely(ret > best_diff))
     {
         new_best = true;
         best_diff = ret;
         suffix_string(best_diff, best_share, sizeof(best_share), 0);
     }
+
     if (unlikely(ret > work->pool->best_diff))
+    {
         work->pool->best_diff = ret;
+    }
+
     cg_wunlock(&control_lock);
 
     if (unlikely(new_best))
+    {
         applog(LOG_INFO, "New best share: %s", best_share);
+    }
 
     return ret;
 }
@@ -4602,6 +5075,7 @@ uint64_t share_ndiff(const struct work *work)
     {
         d64 = truediffone;
         s64 = le256todouble(work->hash);
+
         if (unlikely(!s64))
         {
             ret = 0;
@@ -4613,6 +5087,7 @@ uint64_t share_ndiff(const struct work *work)
     }
     return ret;
 }
+
 
 static void regen_hash(struct work *work)
 {
@@ -4650,8 +5125,10 @@ static struct pool *priority_pool(int choice)
         applog(LOG_ERR, "WTF No pool %d found!", choice);
         return pools[choice];
     }
+
     return ret;
 }
+
 
 void switch_pools(struct pool *selected)
 {
@@ -4659,8 +5136,9 @@ void switch_pools(struct pool *selected)
     int i, pool_no, next_pool;
 
     cg_wlock(&control_lock);
+
     last_pool = currentpool;
-    pool_no = currentpool->pool_no;
+    pool_no   = currentpool->pool_no;
 
     /* Switch selected to pool number 0 and move the rest down */
     if (selected)
@@ -4681,20 +5159,27 @@ void switch_pools(struct pool *selected)
     {
         /* All of these set to the master pool */
         case POOL_BALANCE:
+
         case POOL_FAILOVER:
+
         case POOL_LOADBALANCE:
             for (i = 0; i < total_pools; i++)
             {
                 pool = priority_pool(i);
+
                 if (pool_unusable(pool))
+                {
                     continue;
+                }
                 pool_no = pool->pool_no;
                 break;
             }
             break;
         /* Both of these simply increment and cycle */
         case POOL_ROUNDROBIN:
+
         case POOL_ROTATE:
+
             if (selected && !selected->idle)
             {
                 pool_no = selected->pool_no;
@@ -4705,21 +5190,32 @@ void switch_pools(struct pool *selected)
             for (i = 1; i < total_pools; i++)
             {
                 next_pool++;
+
                 if (next_pool >= total_pools)
+                {
                     next_pool = 0;
+                }
+
                 pool = pools[next_pool];
+
                 if (pool_unusable(pool))
+                {
                     continue;
+                }
+
                 pool_no = next_pool;
                 break;
             }
+
             break;
+
         default:
             break;
     }
 
     currentpool = pools[pool_no];
-    pool = currentpool;
+    pool        = currentpool;
+
     cg_wunlock(&control_lock);
 
     if (pool != last_pool && pool_strategy != POOL_LOADBALANCE && pool_strategy != POOL_BALANCE)
@@ -4738,11 +5234,12 @@ void _discard_work(struct work **workptr, const char *file, const char *func, co
 {
     struct work *work = *workptr;
 
-    if (unlikely(!work)) {
-        applog(LOG_ERR, "Discard work called with NULL work from %s %s:%d",
-               file, func, line);
+    if (unlikely(!work))
+    {
+        applog(LOG_ERR, "Discard work called with NULL work from %s %s:%d", file, func, line);
         return;
     }
+
     if (!work->clone && !work->rolls && !work->mined)
     {
         if (work->pool)
@@ -4753,8 +5250,11 @@ void _discard_work(struct work **workptr, const char *file, const char *func, co
         }
         total_discarded++;
         applog(LOG_DEBUG, "Discarded work");
-    } else
+    }
+    else
+    {
         applog(LOG_DEBUG, "Discarded cloned or rolled work");
+    }
     _free_work(workptr, file, func, line);
 }
 
@@ -4804,18 +5304,25 @@ int restart_wait(struct thr_info *thr, unsigned int mstime)
     struct timespec abstime;
     int rc;
 
-    tdiff.tv_sec = mstime / 1000;
+    tdiff.tv_sec  = mstime / 1000;
     tdiff.tv_usec = mstime * 1000 - (tdiff.tv_sec * 1000000);
+
     cgtime(&now);
     timeradd(&now, &tdiff, &then);
-    abstime.tv_sec = then.tv_sec;
+
+    abstime.tv_sec  = then.tv_sec;
     abstime.tv_nsec = then.tv_usec * 1000;
 
     mutex_lock(&restart_lock);
+
     if (thr->work_restart)
+    {
         rc = 0;
+    }
     else
+    {
         rc = pthread_cond_timedwait(&restart_cond, &restart_lock, &abstime);
+    }
     mutex_unlock(&restart_lock);
 
     return rc;
@@ -4865,6 +5372,7 @@ static void *restart_thread(void __maybe_unused *arg)
     return NULL;
 }
 
+
 /* In order to prevent a deadlock via the various drv->flush_work
  * implementations we send the restart messages via a separate thread. */
 static void restart_threads(void)
@@ -4872,8 +5380,11 @@ static void restart_threads(void)
     pthread_t rthread;
 
     cgtime(&restart_tv_start);
+
     if (unlikely(pthread_create(&rthread, NULL, restart_thread, NULL)))
+    {
         quit(1, "Failed to create restart thread");
+    }
 }
 
 static void signal_work_update(void)
@@ -4884,8 +5395,12 @@ static void signal_work_update(void)
 
     cgtime(&update_tv_start);
     rd_lock(&mining_thr_lock);
+
     for (i = 0; i < mining_threads; i++)
+    {
         mining_thr[i]->work_update = true;
+    }
+
     rd_unlock(&mining_thr_lock);
 }
 
@@ -4903,7 +5418,9 @@ static void set_curblock(const char *hexstr, const unsigned char *bedata)
     for (ofs = 0; ofs <= 56; ofs++)
     {
         if (memcmp(&current_hash[ofs], "0", 1))
+        {
             break;
+        }
     }
     strncpy(prev_block, &current_hash[ofs], 8);
     prev_block[8] = '\0';
@@ -4921,11 +5438,15 @@ static void set_blockdiff(const struct work *work)
 {
     uint8_t pow = work->data[72];
     int powdiff = (8 * (0x1d - 3)) - (8 * (pow - 3));
+
     if (powdiff < 8)
+    {
         powdiff = 8;
-    uint32_t diff32 = be32toh(*((uint32_t *)(work->data + 72))) & 0x00FFFFFF;
+    }
+
+    uint32_t diff32  = be32toh(*((uint32_t *)(work->data + 72))) & 0x00FFFFFF;
     double numerator = 0xFFFFULL << powdiff;
-    double ddiff = numerator / (double)diff32;
+    double ddiff     = numerator / (double)diff32;
 
     if (unlikely(current_diff != ddiff))
     {
@@ -4944,10 +5465,15 @@ static bool block_exists(const char *hexstr, const unsigned char *bedata, const 
 
     wr_lock(&blk_lock);
     HASH_FIND_STR(blocks, hexstr, s);
-    if (!s) {
+    if (!s)
+    {
         s = cgcalloc(sizeof(struct block), 1);
+
         if (unlikely(!s))
+        {
             quit (1, "block_exists OOM");
+        }
+
         strcpy(s->hash, hexstr);
         s->block_no = new_blocks++;
 
@@ -4955,7 +5481,8 @@ static bool block_exists(const char *hexstr, const unsigned char *bedata, const 
         /* Only keep the last hour's worth of blocks in memory since
          * work from blocks before this is virtually impossible and we
          * want to prevent memory usage from continually rising */
-        if (HASH_COUNT(blocks) > 3) {
+        if (HASH_COUNT(blocks) > 3)
+        {
             struct block *oldblock;
 
             HASH_SORT(blocks, block_sort);
@@ -4964,17 +5491,27 @@ static bool block_exists(const char *hexstr, const unsigned char *bedata, const 
             HASH_DEL(blocks, oldblock);
             free(oldblock);
         }
+
         HASH_ADD_STR(blocks, hash, s);
         set_blockdiff(work);
+
         if (deleted_block)
+        {
             applog(LOG_DEBUG, "Deleted block %d from database", deleted_block);
+        }
     }
+
         wr_unlock(&blk_lock);
 
     if (!ret)
+    {
         set_curblock(hexstr, bedata);
-        if (deleted_block)
-            applog(LOG_DEBUG, "Deleted block %d from database", deleted_block);
+    }
+
+    if (deleted_block)
+    {
+        applog(LOG_DEBUG, "Deleted block %d from database", deleted_block);
+    }
 
     return ret;
 }
@@ -4990,31 +5527,39 @@ static bool test_work_current(struct work *work)
     uint32_t height = 0;
 
     if (work->mandatory)
+    {
         return ret;
+    }
 
     swap256(bedata, work->data + 4);
     __bin2hex(hexstr, bedata, 32);
 
     /* Calculate block height */
-    if (cb_height_sz <= 4) {
+    if (cb_height_sz <= 4)
+    {
         cg_memcpy(&height, bin_height, cb_height_sz);
         height = le32toh(height);
         height--;
     }
 
     cg_wlock(&pool->data_lock);
-    if (pool->swork.clean) {
+
+    if (pool->swork.clean)
+    {
         pool->swork.clean = false;
         work->longpoll = true;
     }
+
     cg_wunlock(&pool->data_lock);
 
     /* Search to see if this block exists yet and if not, consider it a
 	 * new block and set the current block details to this one */
-    if (!block_exists(hexstr, bedata, work)) {
+    if (!block_exists(hexstr, bedata, work))
+    {
         /* Copy the information to this pool's prev_block since it
          * knows the new block exists. */
         cg_memcpy(pool->prev_block, bedata, 32);
+
         if (unlikely(new_blocks == 1))
         {
             ret = false;
@@ -5027,17 +5572,21 @@ static bool test_work_current(struct work *work)
         {
             if (work->stratum)
             {
-                applog(LOG_NOTICE, "Stratum from pool %d detected new block at height %d",
-                       pool->pool_no, height);
-            } else {
-                applog(LOG_NOTICE, "%sLONGPOLL from pool %d detected new block",
-                       work->gbt ? "GBT " : "", work->pool->pool_no);
+                applog(LOG_NOTICE, "Stratum from pool %d detected new block at height %d", pool->pool_no, height);
+            }
+            else
+            {
+                applog(LOG_NOTICE, "%sLONGPOLL from pool %d detected new block", work->gbt ? "GBT " : "", work->pool->pool_no);
             }
         }
         else if (have_longpoll && !pool->gbt_solo)
+        {
             applog(LOG_NOTICE, "New block detected on network before pool notification");
+        }
         else if (!pool->gbt_solo)
+        {
             applog(LOG_NOTICE, "New block detected on network");
+        }
         restart_threads();
     }
     else
@@ -5062,12 +5611,15 @@ static bool test_work_current(struct work *work)
                 cg_memcpy(pool->prev_block, bedata, 32);
             }
         }
+
 #if 0
         /* This isn't ideal, this pool is still on an old block but
          * accepting shares from it. To maintain fair work distribution
          * we work on it anyway. */
         if (memcmp(bedata, current_block, 32))
-            applog(LOG_DEBUG, "Pool %d still on old block", pool->pool_no);
+         {
+             applog(LOG_DEBUG, "Pool %d still on old block", pool->pool_no);
+         }
 #endif
         if (work->longpoll)
         {
@@ -5088,41 +5640,53 @@ static bool test_work_current(struct work *work)
             }
         }
     }
+
 out:
     work->longpoll = false;
 
     return ret;
 }
 
+
 static int tv_sort(struct work *worka, struct work *workb)
 {
     return worka->tv_staged.tv_sec - workb->tv_staged.tv_sec;
 }
+
 
 static bool work_rollable(struct work *work)
 {
     return (!work->clone && work->rolltime);
 }
 
+
 static bool hash_push(struct work *work)
 {
     bool rc = true;
 
     mutex_lock(stgd_lock);
+
     if (work_rollable(work))
+    {
         staged_rollable++;
+    }
+
     if (likely(!getq->frozen))
     {
         HASH_ADD_INT(staged_work, id, work);
         HASH_SORT(staged_work, tv_sort);
     }
     else
+    {
         rc = false;
+    }
+
     pthread_cond_broadcast(&getq->cond);
     mutex_unlock(stgd_lock);
 
     return rc;
 }
+
 
 static void _stage_work(struct work *work)
 {
@@ -5132,6 +5696,7 @@ static void _stage_work(struct work *work)
     work->pool->works++;
     hash_push(work);
 }
+
 
 #ifdef HAVE_CURSES
 int curses_int(const char *query)
@@ -5184,6 +5749,7 @@ static void display_pool_summary(struct pool *pool)
 }
 #endif
 
+
 /* We can't remove the memory used for this struct pool because there may
  * still be work referencing it. We just remove it from the pools list */
 void remove_pool(struct pool *pool)
@@ -5205,6 +5771,7 @@ void remove_pool(struct pool *pool)
         (pools[last_pool])->pool_no = pool->pool_no;
         pools[pool->pool_no] = pools[last_pool];
     }
+
     /* Give it an invalid number */
     pool->pool_no = total_pools;
     pool->removed = true;
@@ -5217,6 +5784,7 @@ static struct JE
     char *buf;
     struct JE *next;
 } *jedata = NULL;
+
 
 static void json_escape_free()
 {
@@ -5240,11 +5808,11 @@ static char *json_escape(char *str)
     char *buf, *ptr;
 
     /* 2x is the max, may as well just allocate that */
-    ptr = buf = cgmalloc(strlen(str) * 2 + 1);
-    jeptr = cgmalloc(sizeof(*jeptr));
-    jeptr->buf = buf;
+    ptr         = buf = cgmalloc(strlen(str) * 2 + 1);
+    jeptr       = cgmalloc(sizeof(*jeptr));
+    jeptr->buf  = buf;
     jeptr->next = jedata;
-    jedata = jeptr;
+    jedata      = jeptr;
 
     while (*str)
     {
@@ -5258,6 +5826,7 @@ static char *json_escape(char *str)
 
     return buf;
 }
+
 
 void write_config(FILE *fcfg)
 {
@@ -5287,8 +5856,12 @@ void write_config(FILE *fcfg)
                     pool->rpc_proxy ? "|" : "",
                     json_escape(pool->rpc_url));
         }
+
         if (pool->extranonce_subscribe)
-                fputs("\n\t\t\"extranonce-subscribe\" : true,", fcfg);
+        {
+            fputs("\n\t\t\"extranonce-subscribe\" : true,", fcfg);
+        }
+
         fprintf(fcfg, "\n\t\t\"user\" : \"%s\",", json_escape(pool->rpc_user));
         fprintf(fcfg, "\n\t\t\"pass\" : \"%s\"\n\t}", json_escape(pool->rpc_pass));
     }
@@ -5302,10 +5875,14 @@ void write_config(FILE *fcfg)
         for (p = strtok(name, "|"); p; p = strtok(NULL, "|"))
         {
             if (p[1] != '-')
+            {
                 continue;
+            }
 
             if (opt->desc == opt_hidden)
+            {
                 continue;
+            }
 
             if (opt->type & OPT_NOARG &&
                 ((void *)opt->cb == (void *)opt_set_bool || (void *)opt->cb == (void *)opt_set_invbool) &&
@@ -5351,10 +5928,14 @@ void write_config(FILE *fcfg)
                 char *carg = *(char **)opt->u.arg;
 
                 if (carg)
+                {
                     fprintf(fcfg, ",\n\"%s\" : \"%s\"", p+2, json_escape(carg));
+                }
+
                 continue;
             }
         }
+
         free(name);
     }
 
@@ -5398,8 +5979,10 @@ void zero_bestshare(void)
     }
 }
 
+
 static struct timeval tv_hashmeter;
 static time_t hashdisplay_t;
+
 
 void zero_stats(void)
 {
@@ -5407,53 +5990,55 @@ void zero_stats(void)
 
     cgtime(&total_tv_start);
     copy_time(&tv_hashmeter, &total_tv_start);
-    total_rolling = 0;
-    rolling1 = 0;
-    rolling5 = 0;
-    rolling15 = 0;
+
+    total_rolling      = 0;
+    rolling1           = 0;
+    rolling5           = 0;
+    rolling15          = 0;
     total_mhashes_done = 0;
 
     for(i = 0; i < CG_LOCAL_MHASHES_MAX_NUM; i++)
     {
         g_local_mhashes_dones[i] = 0;
     }
+
     g_local_mhashes_index = 0;
-    g_max_fan = 0;
-    g_max_temp = 0;
-    total_getworks = 0;
-    total_accepted = 0;
-    total_rejected = 0;
-    hw_errors = 0;
-    total_stale = 0;
-    total_discarded = 0;
-    local_work = 0;
-    total_go = 0;
-    total_ro = 0;
-    total_secs = 1.0;
-    last_total_secs = 1.0;
-    total_diff1 = 0;
-    found_blocks = 0;
-    total_diff_accepted = 0;
-    total_diff_rejected = 0;
-    total_diff_stale = 0;
+    g_max_fan             = 0;
+    g_max_temp            = 0;
+    total_getworks        = 0;
+    total_accepted        = 0;
+    total_rejected        = 0;
+    hw_errors             = 0;
+    total_stale           = 0;
+    total_discarded       = 0;
+    local_work            = 0;
+    total_go              = 0;
+    total_ro              = 0;
+    total_secs            = 1.0;
+    last_total_secs       = 1.0;
+    total_diff1           = 0;
+    found_blocks          = 0;
+    total_diff_accepted   = 0;
+    total_diff_rejected   = 0;
+    total_diff_stale      = 0;
 
     for (i = 0; i < total_pools; i++)
     {
         struct pool *pool = pools[i];
 
-        pool->getwork_requested = 0;
-        pool->accepted = 0;
-        pool->rejected = 0;
-        pool->stale_shares = 0;
-        pool->discarded_work = 0;
-        pool->getfail_occasions = 0;
+        pool->getwork_requested    = 0;
+        pool->accepted             = 0;
+        pool->rejected             = 0;
+        pool->stale_shares         = 0;
+        pool->discarded_work       = 0;
+        pool->getfail_occasions    = 0;
         pool->remotefail_occasions = 0;
-        pool->last_share_time = 0;
-        pool->diff1 = 0;
-        pool->diff_accepted = 0;
-        pool->diff_rejected = 0;
-        pool->diff_stale = 0;
-        pool->last_share_diff = 0;
+        pool->last_share_time      = 0;
+        pool->diff1                = 0;
+        pool->diff_accepted        = 0;
+        pool->diff_rejected        = 0;
+        pool->diff_stale           = 0;
+        pool->last_share_diff      = 0;
     }
 
     zero_bestshare();
@@ -5465,16 +6050,18 @@ void zero_stats(void)
         copy_time(&cgpu->dev_start_tv, &total_tv_start);
 
         mutex_lock(&hash_lock);
-        cgpu->total_mhashes = 0;
-        cgpu->accepted = 0;
-        cgpu->rejected = 0;
-        cgpu->hw_errors = 0;
-        cgpu->utility = 0.0;
+
+        cgpu->total_mhashes        = 0;
+        cgpu->accepted             = 0;
+        cgpu->rejected             = 0;
+        cgpu->hw_errors            = 0;
+        cgpu->utility              = 0.0;
         cgpu->last_share_pool_time = 0;
-        cgpu->diff1 = 0;
-        cgpu->diff_accepted = 0;
-        cgpu->diff_rejected = 0;
-        cgpu->last_share_diff = 0;
+        cgpu->diff1                = 0;
+        cgpu->diff_accepted        = 0;
+        cgpu->diff_rejected        = 0;
+        cgpu->last_share_diff      = 0;
+
         mutex_unlock(&hash_lock);
 
         /* Don't take any locks in the driver zero stats function, as
@@ -5483,6 +6070,7 @@ void zero_stats(void)
         cgpu->drv->zero_stats(cgpu);
     }
 }
+
 
 static void set_highprio(void)
 {
@@ -5494,13 +6082,16 @@ static void set_highprio(void)
 
 }
 
+
 static void set_lowprio(void)
 {
 
     int ret = nice(10);
 
     if (!ret)
+    {
         applog(LOG_INFO, "Unable to set thread to low priority");
+    }
 
 }
 
@@ -5514,15 +6105,23 @@ static void display_pools(void)
     opt_loginput = true;
     immedok(logwin, true);
     clear_logwin();
+
 updated:
+
     for (i = 0; i < total_pools; i++)
     {
         pool = pools[i];
 
         if (pool == current_pool())
+        {
             wattron(logwin, A_BOLD);
+        }
+
         if (pool->enabled != POOL_ENABLED)
+        {
             wattron(logwin, A_DIM);
+        }
+
         wlogprint("%d: ", pool->pool_no);
         switch (pool->enabled)
         {
@@ -6255,9 +6854,11 @@ static void thread_reportin(struct thr_info *thr)
 {
     thr->getwork = false;
     cgtime(&thr->last);
-    thr->cgpu->status = LIFE_WELL;
+
+    thr->cgpu->status           = LIFE_WELL;
     thr->cgpu->device_last_well = time(NULL);
 }
+
 
 /* Tell the watchdog thread this thread is waiting on get work and should not
  * be restarted */
@@ -6265,7 +6866,8 @@ static void thread_reportout(struct thr_info *thr)
 {
     thr->getwork = true;
     cgtime(&thr->last);
-    thr->cgpu->status = LIFE_WELL;
+
+    thr->cgpu->status           = LIFE_WELL;
     thr->cgpu->device_last_well = time(NULL);
 }
 
@@ -6276,15 +6878,17 @@ static void hashmeter(int thr_id, uint64_t hashes_done)
     time_t now_t;
     int diff_t;
 
-    uint64_t local_mhashes_done = 0;
+    uint64_t local_mhashes_done     = 0;
     uint64_t local_mhashes_done_avg = 0;
-    int local_mhashes_done_count = 0;
+    int local_mhashes_done_count    = 0;
     int i = 0;
 
     cgtime(&total_tv_end);
+
     tv_tdiff = tdiff(&total_tv_end, &tv_hashmeter);
-    now_t = total_tv_end.tv_sec;
-    diff_t = now_t - hashdisplay_t;
+    now_t    = total_tv_end.tv_sec;
+    diff_t   = now_t - hashdisplay_t;
+
     if (diff_t >= opt_log_interval)
     {
         alt_status ^= switch_status;
@@ -6321,9 +6925,10 @@ static void hashmeter(int thr_id, uint64_t hashes_done)
 
         mutex_lock(&hash_lock);
         cgpu->total_mhashes += hashes_done;
-        decay_time(&cgpu->rolling, hashes_done, device_tdiff, opt_log_interval);
-        decay_time(&cgpu->rolling1, hashes_done, device_tdiff, 60.0);
-        decay_time(&cgpu->rolling5, hashes_done, device_tdiff, 300.0);
+
+        decay_time(&cgpu->rolling,   hashes_done, device_tdiff, opt_log_interval);
+        decay_time(&cgpu->rolling1,  hashes_done, device_tdiff, 60.0);
+        decay_time(&cgpu->rolling5,  hashes_done, device_tdiff, 300.0);
         decay_time(&cgpu->rolling15, hashes_done, device_tdiff, 900.0);
         mutex_unlock(&hash_lock);
 
@@ -6356,9 +6961,9 @@ static void hashmeter(int thr_id, uint64_t hashes_done)
             double device_tdiff  = tdiff(&total_tv_end, &cgpu->last_message_tv);
 
             copy_time(&cgpu->last_message_tv, &total_tv_end);
-            decay_time(&cgpu->rolling, 0, device_tdiff, opt_log_interval);
-            decay_time(&cgpu->rolling1, 0, device_tdiff, 60.0);
-            decay_time(&cgpu->rolling5, 0, device_tdiff, 300.0);
+            decay_time(&cgpu->rolling,   0, device_tdiff, opt_log_interval);
+            decay_time(&cgpu->rolling1,  0, device_tdiff, 60.0);
+            decay_time(&cgpu->rolling5,  0, device_tdiff, 300.0);
             decay_time(&cgpu->rolling15, 0, device_tdiff, 900.0);
         }
 
@@ -6412,7 +7017,6 @@ static void hashmeter(int thr_id, uint64_t hashes_done)
     {
         applog(LOG_ERR, "cgminer time error total_secs = %d last_total_secs = %d", total_secs, last_total_secs);
         mutex_unlock(&hash_lock);
-
         zero_stats();
         mutex_lock(&hash_lock);
     }
@@ -6475,8 +7079,7 @@ static void hashmeter(int thr_id, uint64_t hashes_done)
     }
 }
 
-static void stratum_share_result(json_t *val, json_t *res_val, json_t *err_val,
-                                 struct stratum_share *sshare)
+static void stratum_share_result(json_t *val, json_t *res_val, json_t *err_val, struct stratum_share *sshare)
 {
     struct work *work = sshare->work;
     time_t now_t = time(NULL);
@@ -6489,6 +7092,7 @@ static void stratum_share_result(json_t *val, json_t *res_val, json_t *err_val,
     {
         applog(LOG_INFO, "Pool %d stratum share result lag time %d seconds", work->pool->pool_no, srdiff);
     }
+
     show_hash(work, hashshow);
     share_result(val, res_val, err_val, work, hashshow, false, "");
 }
@@ -6505,6 +7109,7 @@ static bool parse_stratum_response(struct pool *pool, char *s)
     int id;
 
     val = JSON_LOADS(s, &err);
+
     if (!val)
     {
         applog(LOG_INFO,"JSON decode failed(%d): %s", err.line, err.text);
@@ -6513,16 +7118,20 @@ static bool parse_stratum_response(struct pool *pool, char *s)
 
     res_val = json_object_get(val, "result");
     err_val = json_object_get(val, "error");
-    id_val = json_object_get(val, "id");
+    id_val  = json_object_get(val, "id");
 
     if (json_is_null(id_val) || !id_val)
     {
         char *ss;
 
         if (err_val)
+        {
             ss = json_dumps(err_val, JSON_INDENT(3));
+        }
         else
+        {
             ss = strdup("(unknown reason)");
+        }
 
         applog(LOG_INFO, "JSON-RPC non method decode failed: %s", ss);
 
@@ -6534,6 +7143,7 @@ static bool parse_stratum_response(struct pool *pool, char *s)
     id = json_integer_value(id_val);
 
     mutex_lock(&sshare_lock);
+
     HASH_FIND_INT(stratum_shares, &id, sshare);
     if (sshare)
     {
@@ -6547,7 +7157,9 @@ static bool parse_stratum_response(struct pool *pool, char *s)
         double pool_diff;
 
         if (!res_val)
+        {
             goto out;
+        }
         /* Since the share is untracked, we can only guess at what the
          * work difficulty is based on the current pool diff. */
         cg_rlock(&pool->data_lock);
@@ -6578,6 +7190,7 @@ static bool parse_stratum_response(struct pool *pool, char *s)
             pool->diff_rejected += pool_diff;
             mutex_unlock(&stats_lock);
         }
+
         goto out;
     }
 
@@ -6590,7 +7203,9 @@ static bool parse_stratum_response(struct pool *pool, char *s)
 out:
 
     if (val)
+    {
         json_decref(val);
+    }
 
     return ret;
 }
@@ -6603,6 +7218,7 @@ void clear_stratum_shares(struct pool *pool)
     int cleared = 0;
 
     mutex_lock(&sshare_lock);
+
     HASH_ITER(hh, stratum_shares, sshare, tmpshare)
     {
         if (sshare->work->pool == pool)
@@ -6923,13 +7539,23 @@ static void *stratum_sthread(void *userdata)
         {
             snprintf(s, sizeof(s),
                      "{\"params\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%d\"], \"id\": %d, \"method\": \"mining.submit\"}",
-                     pool->rpc_user, work->job_id, nonce2hex, work->ntime, noncehex,work->version,sshare->id);
+                     pool->rpc_user,
+                     work->job_id,
+                     nonce2hex,
+                     work->ntime,
+                     noncehex,work->version,
+                     sshare->id);
         }
         else
         {
             snprintf(s, sizeof(s),
                      "{\"params\": [\"%s\", \"%s\", \"%s\", \"%s\", \"%s\"], \"id\": %d, \"method\": \"mining.submit\"}",
-                     pool->rpc_user, work->job_id, nonce2hex, work->ntime, noncehex, sshare->id);
+                     pool->rpc_user,
+                     work->job_id,
+                     nonce2hex,
+                     work->ntime,
+                     noncehex,
+                     sshare->id);
         }
 
         applog(LOG_INFO, "Submitting share %08lx to pool %d", (long unsigned int)htole32(hash32[6]), pool->pool_no);
