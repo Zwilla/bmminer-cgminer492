@@ -134,7 +134,7 @@ struct usb_intinfo {
 enum sub_ident {
 	IDENT_UNK = 0,
 	IDENT_BMM,
-	IDENT_BMS
+	IDENT_BC5
 };
 
 struct usb_find_devices {
@@ -192,7 +192,6 @@ struct cg_usb_device {
 };
 
 #define USB_NOSTAT 0
-
 #define USB_TMO_0 50
 #define USB_TMO_1 100
 #define USB_TMO_2 500
