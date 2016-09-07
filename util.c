@@ -97,23 +97,23 @@ static void keep_sockalive(SOCKETTYPE fd)
     const int tcp_one = 1;
     const int tcp_keepidle = 45;
     const int tcp_keepintvl = 30;
+
     int flags = fcntl(fd, F_GETFL, 0);
 
     fcntl(fd, F_SETFL, O_NONBLOCK | flags);
 
 
     setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (const void *)&tcp_one, sizeof(tcp_one));
+
     if (!opt_delaynet)
     {
         fcntl(fd, F_SETFD, FD_CLOEXEC);
     }
+
     setsockopt(fd, SOL_TCP, TCP_NODELAY, (const void *)&tcp_one, sizeof(tcp_one));
     setsockopt(fd, SOL_TCP, TCP_KEEPCNT, &tcp_one, sizeof(tcp_one));
     setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &tcp_keepidle, sizeof(tcp_keepidle));
     setsockopt(fd, SOL_TCP, TCP_KEEPINTVL, &tcp_keepintvl, sizeof(tcp_keepintvl));
-
-
-
 
 }
 
@@ -124,8 +124,11 @@ void *_cgmalloc(size_t size, const char *file, const char *func, const int line)
 
     align_len(&size);
     ret = malloc(size);
-    if (unlikely(!ret))
+
+    if (unlikely(!ret)) {
         quit(1, "Failed to malloc size %d from %s %s:%d", (int)size, file, func, line);
+    }
+
     return ret;
 }
 
@@ -135,8 +138,11 @@ void *_cgcalloc(int memb, size_t size, const char *file, const char *func, const
 
     align_len(&size);
     ret = calloc(memb, size);
-    if (unlikely(!ret))
+
+    if (unlikely(!ret)) {
         quit(1, "Failed to calloc memb %d size %d from %s %s:%d", memb, (int)size, file, func, line);
+    }
+
     return ret;
 }
 
@@ -146,15 +152,20 @@ void *_cgrealloc(void *ptr, size_t size, const char *file, const char *func, con
 
     align_len(&size);
     ret = realloc(ptr, size);
-    if (unlikely(!ret))
+
+    if (unlikely(!ret)) {
         quit(1, "Failed to realloc size %d from %s %s:%d", (int)size, file, func, line);
+    }
+
     return ret;
 }
 
 struct tq_ent {
-    void            *data;
-    struct list_head    q_node;
+
+    void *data;
+    struct list_head q_node;
 };
+
 
 #ifdef HAVE_LIBCURL
 struct timeval nettime;
@@ -704,16 +715,20 @@ static struct
     { NULL, 0 }
 };
 
+
 const char *proxytype(proxytypes_t proxytype)
 {
     int i;
 
-    for (i = 0; proxynames[i].name; i++)
-        if (proxynames[i].proxytype == proxytype)
+    for (i = 0; proxynames[i].name; i++) {
+        if (proxynames[i].proxytype == proxytype) {
             return proxynames[i].name;
+        }
+    }
 
     return "invalid";
 }
+
 
 char *get_proxy(char *url, struct pool *pool)
 {
@@ -731,8 +746,8 @@ char *get_proxy(char *url, struct pool *pool)
                 return url;
 
             *split = '\0';
-            len = split - url;
-            pool->rpc_proxy = cgmalloc(1 + len - plen);
+            len = (int) (split - url);
+            pool->rpc_proxy = cgmalloc((size_t) 1 + len - plen);
             strcpy(pool->rpc_proxy, url + plen);
             extract_sockaddr(pool->rpc_proxy, &pool->sockaddr_proxy_url, &pool->sockaddr_proxy_port);
             pool->rpc_proxytype = proxynames[i].proxytype;
@@ -766,8 +781,11 @@ char *bin2hex(const unsigned char *p, size_t len)
     char *s;
 
     slen = len * 2 + 1;
-    if (slen % 4)
+
+    if (slen % 4) {
         slen += 4 - (slen % 4);
+    }
+
     s = cgcalloc(slen, 1);
     __bin2hex(s, p, len);
 
@@ -794,6 +812,7 @@ static const int hex2bin_tbl[256] =
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 };
 
+
 /* Does the reverse of bin2hex but does not allocate any ram */
 bool hex2bin(unsigned char *p, const char *hexstr, size_t len)
 {
@@ -809,9 +828,9 @@ bool hex2bin(unsigned char *p, const char *hexstr, size_t len)
             return ret;
         }
 
-        idx = *hexstr++;
+        idx = (unsigned char) *hexstr++;
         nibble1 = hex2bin_tbl[idx];
-        idx = *hexstr++;
+        idx = (unsigned char) *hexstr++;
         nibble2 = hex2bin_tbl[idx];
 
         if (unlikely((nibble1 < 0) || (nibble2 < 0)))
@@ -840,9 +859,10 @@ static bool _valid_hex(char *s, const char *file, const char *func, const int li
         return ret;
     }
     len = strlen(s);
+
     for (i = 0; i < len; i++)
     {
-        unsigned char idx = s[i];
+        unsigned char idx = (unsigned char) s[i];
 
         if (unlikely(hex2bin_tbl[idx] < 0))
         {
@@ -850,6 +870,7 @@ static bool _valid_hex(char *s, const char *file, const char *func, const int li
             return ret;
         }
     }
+
     ret = true;
     return ret;
 }
@@ -866,15 +887,18 @@ static bool _valid_ascii(char *s, const char *file, const char *func, const int 
         applog(LOG_ERR, "Null string passed to valid_ascii from", IN_FMT_FFL, file, func, line);
         return ret;
     }
+
     len = strlen(s);
+
     if (unlikely(!len))
     {
         applog(LOG_ERR, "Zero length string passed to valid_ascii from", IN_FMT_FFL, file, func, line);
         return ret;
     }
+
     for (i = 0; i < len; i++)
     {
-        unsigned char idx = s[i];
+        unsigned char idx = (unsigned char) s[i];
 
         if (unlikely(idx < 32 || idx > 126))
         {
@@ -910,9 +934,11 @@ void b58tobin(unsigned char *b58bin, const char *b58)
 
     memset(bin32, 0, 7 * sizeof(uint32_t));
     len = strlen(b58);
+
     for (i = 0; i < len; i++) {
-        c = b58[i];
-        c = b58tobin_tbl[c];
+        c = (uint32_t) b58[i];
+        c = (uint32_t) b58tobin_tbl[c];
+
         for (j = 6; j >= 0; j--)
         {
             t = ((uint64_t)bin32[j]) * 58 + c;
@@ -920,7 +946,7 @@ void b58tobin(unsigned char *b58bin, const char *b58)
             bin32[j] = t & 0xffffffffull;
         }
     }
-    *(b58bin++) = bin32[0] & 0xff;
+    *(b58bin++) = (unsigned char) (bin32[0] & 0xff);
     for (i = 1; i < 7; i++)
     {
         *((uint32_t *)b58bin) = htobe32(bin32[i]);
@@ -957,7 +983,7 @@ int ser_number(unsigned char *s, int32_t val)
     else
         len = 4;
     *i32 = htole32(val);
-    s[0] = len++;
+    s[0] = (unsigned char) len++;
     return len;
 }
 
@@ -1013,6 +1039,7 @@ bool fulltest(const unsigned char *hash, const unsigned char *target)
             rc = false;
             break;
         }
+
         if (h32tmp < t32tmp)
         {
             rc = true;
@@ -1059,8 +1086,9 @@ void tq_free(struct thread_q *tq)
 {
     struct tq_ent *ent, *iter;
 
-    if (!tq)
+    if (!tq) {
         return;
+    }
 
     list_for_each_entry_safe(ent, iter, &tq->q, q_node)
     {
@@ -1103,6 +1131,7 @@ bool tq_push(struct thread_q *tq, void *data)
     INIT_LIST_HEAD(&ent->q_node);
 
     mutex_lock(&tq->mutex);
+
     if (!tq->frozen)
     {
         list_add_tail(&ent->q_node, &tq->q);
@@ -1112,11 +1141,13 @@ bool tq_push(struct thread_q *tq, void *data)
         free(ent);
         rc = false;
     }
+
     pthread_cond_signal(&tq->cond);
     mutex_unlock(&tq->mutex);
 
     return rc;
 }
+
 
 void *tq_pop(struct thread_q *tq, const struct timespec *abstime)
 {
@@ -1125,17 +1156,24 @@ void *tq_pop(struct thread_q *tq, const struct timespec *abstime)
     int rc;
 
     mutex_lock(&tq->mutex);
-    if (!list_empty(&tq->q))
+    if (!list_empty(&tq->q)) {
         goto pop;
+    }
 
-    if (abstime)
+    if (abstime) {
         rc = pthread_cond_timedwait(&tq->cond, &tq->mutex, abstime);
-    else
+    }
+    else {
         rc = pthread_cond_wait(&tq->cond, &tq->mutex);
-    if (rc)
+    }
+
+    if (rc) {
         goto out;
-    if (list_empty(&tq->q))
+    }
+
+    if (list_empty(&tq->q)) {
         goto out;
+    }
 pop:
     ent = list_entry(tq->q.next, struct tq_ent, q_node);
     rval = ent->data;
@@ -1151,20 +1189,21 @@ out:
 int thr_info_create(struct thr_info *thr, pthread_attr_t *attr, void *(*start) (void *), void *arg)
 {
     cgsem_init(&thr->sem);
-
     return pthread_create(&thr->pth, attr, start, arg);
 }
 
 void thr_info_cancel(struct thr_info *thr)
 {
-    if (!thr)
+    if (!thr) {
         return;
+    }
 
     if (PTH(thr) != 0L)
     {
         pthread_cancel(thr->pth);
         PTH(thr) = 0L;
     }
+
     cgsem_destroy(&thr->sem);
 }
 
@@ -1173,25 +1212,30 @@ void subtime(struct timeval *a, struct timeval *b)
     timersub(a, b, b);
 }
 
+
 void addtime(struct timeval *a, struct timeval *b)
 {
     timeradd(a, b, b);
 }
+
 
 bool time_more(struct timeval *a, struct timeval *b)
 {
     return timercmp(a, b, >);
 }
 
+
 bool time_less(struct timeval *a, struct timeval *b)
 {
     return timercmp(a, b, <);
 }
 
+
 void copy_time(struct timeval *dest, const struct timeval *src)
 {
     cg_memcpy(dest, src, sizeof(struct timeval));
 }
+
 
 void timespec_to_val(struct timeval *val, const struct timespec *spec)
 {
@@ -1199,11 +1243,13 @@ void timespec_to_val(struct timeval *val, const struct timespec *spec)
     val->tv_usec = spec->tv_nsec / 1000;
 }
 
+
 void timeval_to_spec(struct timespec *spec, const struct timeval *val)
 {
     spec->tv_sec = val->tv_sec;
     spec->tv_nsec = val->tv_usec * 1000;
 }
+
 
 void us_to_timeval(struct timeval *val, int64_t us)
 {
@@ -1213,6 +1259,7 @@ void us_to_timeval(struct timeval *val, int64_t us)
     val->tv_usec = tvdiv.rem;
 }
 
+
 void us_to_timespec(struct timespec *spec, int64_t us)
 {
     lldiv_t tvdiv = lldiv(us, 1000000);
@@ -1220,6 +1267,7 @@ void us_to_timespec(struct timespec *spec, int64_t us)
     spec->tv_sec = tvdiv.quot;
     spec->tv_nsec = tvdiv.rem * 1000;
 }
+
 
 void ms_to_timespec(struct timespec *spec, int64_t ms)
 {
@@ -1229,6 +1277,7 @@ void ms_to_timespec(struct timespec *spec, int64_t ms)
     spec->tv_nsec = tvdiv.rem * 1000000;
 }
 
+
 void ms_to_timeval(struct timeval *val, int64_t ms)
 {
     lldiv_t tvdiv = lldiv(ms, 1000);
@@ -1237,6 +1286,7 @@ void ms_to_timeval(struct timeval *val, int64_t ms)
     val->tv_usec = tvdiv.rem * 1000;
 }
 
+
 static void spec_nscheck(struct timespec *ts)
 {
     while (ts->tv_nsec >= 1000000000)
@@ -1244,6 +1294,7 @@ static void spec_nscheck(struct timespec *ts)
         ts->tv_nsec -= 1000000000;
         ts->tv_sec++;
     }
+
     while (ts->tv_nsec < 0)
     {
         ts->tv_nsec += 1000000000;
@@ -1263,6 +1314,7 @@ static int __maybe_unused timespec_to_ms(struct timespec *ts)
     return ts->tv_sec * 1000 + ts->tv_nsec / 1000000;
 }
 
+
 /* Subtract b from a */
 static void __maybe_unused timersubspec(struct timespec *a, const struct timespec *b)
 {
@@ -1276,22 +1328,34 @@ char *Strcasestr(char *haystack, const char *needle)
     char *lowhay, *lowneedle, *ret;
     int hlen, nlen, i, ofs;
 
-    if (unlikely(!haystack || !needle))
+    if (unlikely(!haystack || !needle)) {
         return NULL;
+    }
+
     hlen = strlen(haystack);
     nlen = strlen(needle);
-    if (!hlen || !nlen)
+
+    if (!hlen || !nlen) {
         return NULL;
+    }
+
     lowhay = alloca(hlen);
     lowneedle = alloca(nlen);
 
-    for (i = 0; i < hlen; i++)
+    for (i = 0; i < hlen; i++) {
         lowhay[i] = tolower(haystack[i]);
-    for (i = 0; i < nlen; i++)
+    }
+
+    for (i = 0; i < nlen; i++) {
         lowneedle[i] = tolower(needle[i]);
+    }
+
     ret = strstr(lowhay, lowneedle);
-    if (!ret)
+
+    if (!ret) {
         return ret;
+    }
+
     ofs = ret - lowhay;
     return haystack + ofs;
 }
@@ -1303,8 +1367,9 @@ char *Strsep(char **stringp, const char *delim)
 
     p = (ret != NULL) ? strpbrk(ret, delim) : NULL;
 
-    if (p == NULL)
+    if (p == NULL) {
         *stringp = NULL;
+    }
     else
     {
         *p = '\0';
@@ -1314,52 +1379,18 @@ char *Strsep(char **stringp, const char *delim)
     return ret;
 }
 
-#ifdef WIN32
-/* Mingw32 has no strsep so create our own custom one  */
 
-/* Windows start time is since 1601 LOL so convert it to unix epoch 1970. */
-#define EPOCHFILETIME (116444736000000000LL)
-
-/* These are cgminer specific sleep functions that use an absolute nanosecond
- * resolution timer to avoid poor usleep accuracy and overruns. */
-
-/* Return the system time as an lldiv_t in decimicroseconds. */
-static void decius_time(lldiv_t *lidiv)
-{
-    FILETIME ft;
-    LARGE_INTEGER li;
-
-    GetSystemTimeAsFileTime(&ft);
-    li.LowPart  = ft.dwLowDateTime;
-    li.HighPart = ft.dwHighDateTime;
-    li.QuadPart -= EPOCHFILETIME;
-
-    /* SystemTime is in decimicroseconds so divide by an unusual number */
-    *lidiv = lldiv(li.QuadPart, 10000000);
-}
-
-/* This is a cgminer gettimeofday wrapper. Since we always call gettimeofday
- * with tz set to NULL, and windows' default resolution is only 15ms, this
- * gives us higher resolution times on windows. */
-void cgtime(struct timeval *tv)
-{
-    lldiv_t lidiv;
-
-    decius_time(&lidiv);
-    tv->tv_sec = lidiv.quot;
-    tv->tv_usec = lidiv.rem / 10;
-}
-
-#else /* WIN32 */
 void cgtime(struct timeval *tv)
 {
     gettimeofday(tv, NULL);
 }
 
+
 int cgtimer_to_ms(cgtimer_t *cgt)
 {
     return timespec_to_ms(cgt);
 }
+
 
 /* Subtracts b from a and stores it in res. */
 void cgtimer_sub(cgtimer_t *a, cgtimer_t *b, cgtimer_t *res)
@@ -1372,7 +1403,7 @@ void cgtimer_sub(cgtimer_t *a, cgtimer_t *b, cgtimer_t *res)
         res->tv_sec--;
     }
 }
-#endif /* WIN32 */
+
 
 #if defined(CLOCK_MONOTONIC) && !defined(__FreeBSD__) /* Essentially just linux */
 //#ifdef CLOCK_MONOTONIC /* Essentially just linux */
@@ -1438,75 +1469,7 @@ void cgtimer_time(cgtimer_t *ts_start)
 }
 #endif /* __MACH__ */
 
-#ifdef WIN32
-/* For windows we use the SystemTime stored as a LARGE_INTEGER as the cgtimer_t
- * typedef, allowing us to have sub-microsecond resolution for times, do simple
- * arithmetic for timer calculations, and use windows' own hTimers to get
- * accurate absolute timeouts. */
-int cgtimer_to_ms(cgtimer_t *cgt)
-{
-    return (int)(cgt->QuadPart / 10000LL);
-}
 
-/* Subtracts b from a and stores it in res. */
-void cgtimer_sub(cgtimer_t *a, cgtimer_t *b, cgtimer_t *res)
-{
-    res->QuadPart = a->QuadPart - b->QuadPart;
-}
-
-/* Note that cgtimer time is NOT offset by the unix epoch since we use absolute
- * timeouts with hTimers. */
-void cgtimer_time(cgtimer_t *ts_start)
-{
-    FILETIME ft;
-
-    GetSystemTimeAsFileTime(&ft);
-    ts_start->LowPart = ft.dwLowDateTime;
-    ts_start->HighPart = ft.dwHighDateTime;
-}
-
-static void liSleep(LARGE_INTEGER *li, int timeout)
-{
-    HANDLE hTimer;
-    DWORD ret;
-
-    if (unlikely(timeout <= 0))
-        return;
-
-    hTimer = CreateWaitableTimer(NULL, TRUE, NULL);
-    if (unlikely(!hTimer))
-        quit(1, "Failed to create hTimer in liSleep");
-    ret = SetWaitableTimer(hTimer, li, 0, NULL, NULL, 0);
-    if (unlikely(!ret))
-        quit(1, "Failed to SetWaitableTimer in liSleep");
-    /* We still use a timeout as a sanity check in case the system time
-     * is changed while we're running */
-    ret = WaitForSingleObject(hTimer, timeout);
-    if (unlikely(ret != WAIT_OBJECT_0 && ret != WAIT_TIMEOUT))
-        quit(1, "Failed to WaitForSingleObject in liSleep");
-    CloseHandle(hTimer);
-}
-
-void cgsleep_ms_r(cgtimer_t *ts_start, int ms)
-{
-    LARGE_INTEGER li;
-
-    li.QuadPart = ts_start->QuadPart + (int64_t)ms * 10000LL;
-    liSleep(&li, ms);
-}
-
-void cgsleep_us_r(cgtimer_t *ts_start, int64_t us)
-{
-    LARGE_INTEGER li;
-    int ms;
-
-    li.QuadPart = ts_start->QuadPart + us * 10LL;
-    ms = us / 1000;
-    if (!ms)
-        ms = 1;
-    liSleep(&li, ms);
-}
-#else /* WIN32 */
 static void cgsleep_spec(struct timespec *ts_diff, const struct timespec *ts_start)
 {
     struct timespec now;
@@ -1534,7 +1497,7 @@ void cgsleep_us_r(cgtimer_t *ts_start, int64_t us)
     us_to_timespec(&ts_diff, us);
     cgsleep_spec(&ts_diff, ts_start);
 }
-#endif /* WIN32 */
+
 #endif /* CLOCK_MONOTONIC */
 
 void cgsleep_ms(int ms)
@@ -1587,31 +1550,41 @@ bool extract_sockaddr(char *url, char **sockaddr_url, char **sockaddr_port)
 
     *sockaddr_url = url;
     url_begin = strstr(url, "//");
-    if (!url_begin)
+    if (!url_begin) {
         url_begin = url;
-    else
+    }
+    else {
         url_begin += 2;
+    }
 
     /* Look for numeric ipv6 entries */
     ipv6_begin = strstr(url_begin, "[");
     ipv6_end = strstr(url_begin, "]");
-    if (ipv6_begin && ipv6_end && ipv6_end > ipv6_begin)
+
+    if (ipv6_begin && ipv6_end && ipv6_end > ipv6_begin) {
         url_end = strstr(ipv6_end, ":");
-    else
+    }
+    else {
         url_end = strstr(url_begin, ":");
+    }
+
     if (url_end)
     {
-        url_len = url_end - url_begin;
+        url_len = (int) (url_end - url_begin);
         port_len = strlen(url_begin) - url_len - 1;
-        if (port_len < 1)
+
+        if (port_len < 1) {
             return false;
+        }
+
         port_start = url_end + 1;
     }
     else
         url_len = strlen(url_begin);
 
-    if (url_len < 1)
+    if (url_len < 1) {
         return false;
+    }
 
     /* Get rid of the [] */
     if (ipv6_begin && ipv6_end && ipv6_end > ipv6_begin)
@@ -1631,8 +1604,9 @@ bool extract_sockaddr(char *url, char **sockaddr_url, char **sockaddr_port)
         if (slash)
             *slash = '\0';
     }
-    else
+    else {
         strcpy(port, "80");
+    }
 
     *sockaddr_port = strdup(port);
     *sockaddr_url = strdup(url_address);
@@ -1655,8 +1629,9 @@ static enum send_ret __stratum_send(struct pool *pool, char *s, ssize_t len)
     SOCKETTYPE sock = pool->sock;
     ssize_t ssent = 0;
 
-    if (opt_protocol)
+    if (opt_protocol) {
         applog(LOG_DEBUG, "SEND: %s", s);
+    }
 
     strcat(s, "\n");
     len++;
@@ -1669,12 +1644,16 @@ static enum send_ret __stratum_send(struct pool *pool, char *s, ssize_t len)
     retry:
         FD_ZERO(&wd);
         FD_SET(sock, &wd);
+
         if (select(sock + 1, NULL, &wd, NULL, &timeout) < 1)
         {
-            if (interrupted())
+            if (interrupted()) {
                 goto retry;
+            }
+
             return SEND_SELECTFAIL;
         }
+
 #ifdef __APPLE__
         sent = send(pool->sock, s + ssent, len, SO_NOSIGPIPE);
 #elif WIN32
@@ -1702,12 +1681,16 @@ bool stratum_send(struct pool *pool, char *s, ssize_t len)
 {
     enum send_ret ret = SEND_INACTIVE;
 
-    if (opt_protocol)
+    if (opt_protocol) {
         applog(LOG_DEBUG, "SEND: %s", s);
+    }
 
     mutex_lock(&pool->stratum_lock);
-    if (pool->stratum_active)
+
+    if (pool->stratum_active) {
         ret = __stratum_send(pool, s, len);
+    }
+
     mutex_unlock(&pool->stratum_lock);
 
     /* This is to avoid doing applog under stratum_lock */
@@ -1716,20 +1699,25 @@ bool stratum_send(struct pool *pool, char *s, ssize_t len)
         default:
         case SEND_OK:
             break;
+
         case SEND_SELECTFAIL:
             applog(LOG_DEBUG, "Write select failed on pool %d sock", pool->pool_no);
             suspend_stratum(pool);
             break;
+
         case SEND_SENDFAIL:
             applog(LOG_DEBUG, "Failed to send in stratum_send");
             suspend_stratum(pool);
             break;
+
         case SEND_INACTIVE:
             applog(LOG_DEBUG, "Stratum send failed due to no pool stratum_active");
             break;
     }
+
     return (ret == SEND_OK);
 }
+
 
 static bool socket_full(struct pool *pool, int wait)
 {
@@ -1737,30 +1725,37 @@ static bool socket_full(struct pool *pool, int wait)
     struct timeval timeout;
     fd_set rd;
 
-    if (unlikely(wait < 0))
+    if (unlikely(wait < 0)) {
         wait = 0;
+    }
+
     FD_ZERO(&rd);
     FD_SET(sock, &rd);
     timeout.tv_usec = 0;
     timeout.tv_sec = wait;
-    if (select(sock + 1, &rd, NULL, NULL, &timeout) > 0)
+
+    if (select(sock + 1, &rd, NULL, NULL, &timeout) > 0) {
         return true;
+    }
+
     return false;
 }
 
 /* Check to see if Santa's been good to you */
 bool sock_full(struct pool *pool)
 {
-    if (strlen(pool->sockbuf))
+    if (strlen(pool->sockbuf)) {
         return true;
+    }
 
     return (socket_full(pool, 0));
 }
 
 static void clear_sockbuf(struct pool *pool)
 {
-    if (likely(pool->sockbuf))
+    if (likely(pool->sockbuf)) {
         strcpy(pool->sockbuf, "");
+    }
 }
 
 static void clear_sock(struct pool *pool)
@@ -1844,7 +1839,7 @@ char *recv_line(struct pool *pool)
                 break;
             }
             cgtime(&now);
-            waited = tdiff(&now, &rstart);
+            waited = (int) tdiff(&now, &rstart);
             if (n < 0)
             {
                 if (!sock_blocks() || !socket_full(pool, DEFAULT_SOCKWAIT - waited))
