@@ -31,7 +31,6 @@
 #define POLARSSL_SHA2_H
 
 
-
 /**
  * \brief          SHA-256 context structure
  */
