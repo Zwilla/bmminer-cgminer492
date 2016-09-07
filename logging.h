@@ -53,6 +53,7 @@ extern void _simplelog(int prio, const char *str, bool force);
 	} \
 } while (0)
 
+// unused here
 #define applogsiz(prio, _SIZ, fmt, ...) do { \
 	if (opt_debug || prio != LOG_DEBUG) { \
 		if (use_syslog || opt_log_output || prio <= opt_log_level) { \
