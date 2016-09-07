@@ -1,4 +1,4 @@
-Version 4.9.2 BMMiner tom CGminer - 7th September 2016 by Miguel Padilla - alias Zwilla of Fubly
+Version 4.9.2 BMMiner tom CGminer - 7th September 2016 by Miguel Padilla - alias Zwilla or Fubly
 
 deleted many files and code, because this miner software is at moment only for Antminer S9
 the addition for S7 will follow
@@ -8,6 +8,11 @@ Make your own mind, and let the community know about your experience with it-
 
 - Deletions: too many to list them
 - Addition: tom many to list them
+
+- Some new option:
+  I will list them later, but all enabled by default
+
+- Blocking Bitmain Minerlink Service
 
 The community arround this Git you find here: https://bitcointalk.org/index.php?topic=1569129
 
