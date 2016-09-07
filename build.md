@@ -29,6 +29,7 @@ sleep 3
 
 screen -r
 
+
 If you want to use your old bmminer, just run this
 
 mv /usr/bin/bmminer-old /usr/bin/bmminer
