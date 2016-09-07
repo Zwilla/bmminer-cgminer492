@@ -2112,7 +2112,7 @@ static struct opt_table opt_cmdline_table[] =
 {
     OPT_WITH_ARG("--config|-c", load_config, NULL, &opt_set_null,
                  "Load a JSON-format configuration file\n"
-                         "See example.conf for an example configuration."),
+                         "See example-S7.conf or S9.conf for an example configuration."),
 
     OPT_WITH_ARG("--default-config", set_default_config, NULL, &opt_set_null,
                  "Specify the filename of the default config file\n"
