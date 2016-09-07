@@ -5,9 +5,7 @@ cd bmminer-cgminer492
 
 chmod -R 777 *
 
-./autogen.sh
-
-./configure --enable-bitamin-c5
+./autogen.sh CC=/usr/bin/arm-angstrom-linux-gnueabi-gcc NM=/usr/bin/arm-angstrom-linux-gnueabi-gcc-nm AR=/usr/bin/arm-angstrom-linux-gnueabi-ar -host arm-angstrom-linux-gnueabi --enable-bitmain-c5 --with-system-jansson
 
 make
 
