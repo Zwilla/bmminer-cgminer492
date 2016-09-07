@@ -28,8 +28,8 @@
  *
  *  http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
  */
-#include <string.h>
 
+#include <string.h>
 #include "sha2_c5.h"
 
 extern void dump_hex(uint8_t *data, uint16_t len);
