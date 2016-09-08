@@ -1270,9 +1270,9 @@ static inline void libusb_fill_control_setup(unsigned char *buffer,
 	struct libusb_control_setup *setup = (struct libusb_control_setup *) buffer;
 	setup->bmRequestType = bmRequestType;
 	setup->bRequest = bRequest;
-	setup->wValue = libusb_cpu_to_le16(wValue);
-	setup->wIndex = libusb_cpu_to_le16(wIndex);
-	setup->wLength = libusb_cpu_to_le16(wLength);
+	setup->wValue = libusb_cpu_to_le16((uint16_t) wValue);
+	setup->wIndex = libusb_cpu_to_le16((uint16_t) wIndex);
+	setup->wLength = libusb_cpu_to_le16((uint16_t) wLength);
 }
 
 struct libusb_transfer * LIBUSB_CALL libusb_alloc_transfer(int iso_packets);
@@ -1320,7 +1320,7 @@ static inline void libusb_fill_control_transfer(
 	transfer->buffer = buffer;
 	if (setup)
 		transfer->length = LIBUSB_CONTROL_SETUP_SIZE
-			+ libusb_le16_to_cpu(setup->wLength);
+			+ libusb_le16_to_cpu((uint16_t) setup->wLength);
 	transfer->user_data = user_data;
 	transfer->callback = callback;
 }

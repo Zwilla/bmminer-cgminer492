@@ -24,20 +24,20 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
-#ifndef WIN32
+
+
 #include <fcntl.h>
-# ifdef __linux
-#  include <sys/prctl.h>
+
+#ifdef __linux
+# include <sys/prctl.h>
 # endif
+
 # include <sys/socket.h>
 # include <netinet/in.h>
 # include <netinet/tcp.h>
 # include <netdb.h>
-#else
-# include <winsock2.h>
-# include <ws2tcpip.h>
-# include <mmsystem.h>
-#endif
+
+
 #include <sched.h>
 
 #include "miner.h"
@@ -126,7 +126,7 @@ void *_cgmalloc(size_t size, const char *file, const char *func, const int line)
     ret = malloc(size);
 
     if (unlikely(!ret)) {
-        quit(1, "Failed to malloc size %d from %s %s:%d", (int)size, file, func, line);
+        quit(1, "Failed to malloc size %d from %s %s:%d", size, file, func, line);
     }
 
     return ret;
@@ -140,7 +140,7 @@ void *_cgcalloc(int memb, size_t size, const char *file, const char *func, const
     ret = calloc(memb, size);
 
     if (unlikely(!ret)) {
-        quit(1, "Failed to calloc memb %d size %d from %s %s:%d", memb, (int)size, file, func, line);
+        quit(1, "Failed to calloc memb %d size %d from %s %s:%d", memb, size, file, func, line);
     }
 
     return ret;
@@ -154,7 +154,7 @@ void *_cgrealloc(void *ptr, size_t size, const char *file, const char *func, con
     ret = realloc(ptr, size);
 
     if (unlikely(!ret)) {
-        quit(1, "Failed to realloc size %d from %s %s:%d", (int)size, file, func, line);
+        quit(1, "Failed to realloc size %d from %s %s:%d", size, file, func, line);
     }
 
     return ret;
@@ -764,7 +764,7 @@ void __bin2hex(char *s, const unsigned char *p, size_t len)
     int i;
     static const char hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
-    for (i = 0; i < (int)len; i++)
+    for (i = 0; i < (int)(len / 1); i++)
     {
         *s++ = hex[p[i] >> 4];
         *s++ = hex[p[i] & 0xF];
@@ -786,7 +786,7 @@ char *bin2hex(const unsigned char *p, size_t len)
         slen += 4 - (slen % 4);
     }
 
-    s = cgcalloc(slen, 1);
+    s = cgcalloc(slen, (size_t)1);
     __bin2hex(s, p, len);
 
     return s;
@@ -997,16 +997,16 @@ unsigned char *ser_string(char *s, int *slen)
     if (len < 253)
     {
         ret[0] = len;
-        cg_memcpy(ret + 1, s, len);
+        cg_memcpy(ret + 1, s, (unsigned int)(len/1));
         *slen = len + 1;
     }
     else if (len < 0x10000)
     {
-        uint16_t *u16 = (uint16_t *)&ret[1];
+        uint16_t *u16 = (uint16_t *) &ret[1];
 
         ret[0] = 253;
         *u16 = htobe16(len);
-        cg_memcpy(ret + 3, s, len);
+        cg_memcpy(ret + 3, s, (unsigned int)(len/1));
         *slen = len + 3;
     }
     else
@@ -1016,7 +1016,7 @@ unsigned char *ser_string(char *s, int *slen)
 
         ret[0] = 254;
         *u32 = htobe32(len);
-        cg_memcpy(ret + 5, s, len);
+        cg_memcpy(ret + 5, s, (unsigned int)(len/1));
         *slen = len + 5;
     }
     return ret;
@@ -1054,8 +1054,8 @@ bool fulltest(const unsigned char *hash, const unsigned char *target)
 
         swab256(hash_swap, hash);
         swab256(target_swap, target);
-        hash_str = bin2hex(hash_swap, 32);
-        target_str = bin2hex(target_swap, 32);
+        hash_str = bin2hex(hash_swap, (size_t)32);
+        target_str = bin2hex(target_swap, (size_t)32);
 
         applog(LOG_DEBUG, " Proof: %s\nTarget: %s\nTrgVal? %s",
                hash_str,
@@ -1339,8 +1339,8 @@ char *Strcasestr(char *haystack, const char *needle)
         return NULL;
     }
 
-    lowhay = alloca(hlen);
-    lowneedle = alloca(nlen);
+    lowhay = alloca((size_t) hlen);
+    lowneedle = alloca((size_t) nlen);
 
     for (i = 0; i < hlen; i++) {
         lowhay[i] = tolower(haystack[i]);
@@ -1356,7 +1356,7 @@ char *Strcasestr(char *haystack, const char *needle)
         return ret;
     }
 
-    ofs = ret - lowhay;
+    ofs = (int) (ret - lowhay);
     return haystack + ofs;
 }
 
@@ -1486,7 +1486,7 @@ void cgsleep_ms_r(cgtimer_t *ts_start, int ms)
 {
     struct timespec ts_diff;
 
-    ms_to_timespec(&ts_diff, ms);
+    ms_to_timespec(&ts_diff, (int64_t) ms);
     cgsleep_spec(&ts_diff, ts_start);
 }
 
@@ -1979,12 +1979,12 @@ static bool parse_notify(struct pool *pool, json_t *val)
                                          sizeof(char *) * merkles + 1);
         for (i = 0; i < merkles; i++)
         {
-            char *merkle = json_array_string(arr, i);
+            char *merkle = json_array_string(arr, (unsigned int) i);
 
-            pool->swork.merkle_bin[i] = cgmalloc(32);
+            pool->swork.merkle_bin[i] = cgmalloc((size_t)32);
             if (opt_protocol)
                 applog(LOG_DEBUG, "merkle %d: %s", i, merkle);
-            ret = hex2bin(pool->swork.merkle_bin[i], merkle, 32);
+            ret = hex2bin(pool->swork.merkle_bin[i], merkle, (size_t)32);
             free(merkle);
             if (unlikely(!ret))
             {
@@ -2038,14 +2038,14 @@ static bool parse_notify(struct pool *pool, json_t *val)
         goto out_unlock;
     }
     free(pool->coinbase);
-    pool->coinbase = cgcalloc(alloc_len, 1);
-    cg_memcpy(pool->coinbase, cb1, cb1_len);
+    pool->coinbase = cgcalloc(alloc_len, (size_t)1);
+    cg_memcpy(pool->coinbase, cb1, (size_t)cb1_len);
     if (pool->n1_len)
-        cg_memcpy(pool->coinbase + cb1_len, pool->nonce1bin, pool->n1_len);
-    cg_memcpy(pool->coinbase + cb1_len + pool->n1_len + pool->n2size, cb2, cb2_len);
+        cg_memcpy(pool->coinbase + cb1_len, pool->nonce1bin, (size_t)pool->n1_len);
+    cg_memcpy(pool->coinbase + cb1_len + pool->n1_len + pool->n2size, cb2, (size_t)cb2_len);
     if (opt_debug)
     {
-        char *cb = bin2hex(pool->coinbase, pool->coinbase_len);
+        char *cb = bin2hex(pool->coinbase, (size_t)pool->coinbase_len);
 
         applog(LOG_DEBUG, "Pool %d coinbase %s", pool->pool_no, cb);
         free(cb);
@@ -2110,7 +2110,7 @@ static bool parse_diff(struct pool *pool, json_t *val)
 
     if (old_diff != diff)
     {
-        int idiff = diff;
+        int idiff = (int) diff;
 
         if ((double)idiff == diff)
         {
@@ -2154,7 +2154,7 @@ static bool parse_extranonce(struct pool *pool, json_t *val)
     pool->nonce1 = nonce1;
     pool->n1_len = strlen(nonce1) / 2;
     free(pool->nonce1bin);
-    pool->nonce1bin = cgcalloc(pool->n1_len, 1);
+    pool->nonce1bin = cgcalloc(pool->n1_len, (size_t)1);
     if (unlikely(!pool->nonce1bin))
         quithere(1, "Failed to calloc pool->nonce1bin");
     hex2bin(pool->nonce1bin, pool->nonce1, pool->n1_len);
@@ -2578,7 +2578,7 @@ static bool http_negotiate(struct pool *pool, int sockd, bool http0)
     /* Ignore unwanted headers till we get desired response */
     for (i = 0; i < 4; i++)
     {
-        buf[i] = recv_byte(sockd);
+        buf[i] = (char) recv_byte(sockd);
         if (buf[i] == (char)-1)
         {
             applog(LOG_WARNING, "Couldn't read HTTP byte from proxy %s:%s",
@@ -2590,7 +2590,7 @@ static bool http_negotiate(struct pool *pool, int sockd, bool http0)
     {
         for (i = 0; i < 3; i++)
             buf[i] = buf[i + 1];
-        buf[3] = recv_byte(sockd);
+        buf[3] = (char) recv_byte(sockd);
         if (buf[3] == (char)-1)
         {
             applog(LOG_WARNING, "Couldn't read HTTP byte from proxy %s:%s",
@@ -2631,12 +2631,12 @@ static bool socks5_negotiate(struct pool *pool, int sockd)
     len = (strlen(pool->sockaddr_url));
     if (len > 255)
         len = 255;
-    uclen = len;
-    buf[4] = (uclen & 0xff);
-    cg_memcpy(buf + 5, pool->sockaddr_url, len);
+    uclen = (unsigned char) len;
+    buf[4] = (char) (uclen & 0xff);
+    cg_memcpy(buf + 5, pool->sockaddr_url, (unsigned int)len);
     port = atoi(pool->stratum_port);
-    buf[5 + len] = (port >> 8);
-    buf[6 + len] = (port & 0xff);
+    buf[5 + len] = (char) (port >> 8);
+    buf[6 + len] = (char) (port & 0xff);
     send(sockd, buf, (7 + len), 0);
     if (recv_byte(sockd) != 0x05 || recv_byte(sockd) != 0x00)
     {
@@ -2646,7 +2646,7 @@ static bool socks5_negotiate(struct pool *pool, int sockd)
     }
 
     recv_byte(sockd);
-    atyp = recv_byte(sockd);
+    atyp = (unsigned char) recv_byte(sockd);
     if (atyp == 0x01)
     {
         for (i = 0; i < 4; i++)
@@ -2682,22 +2682,22 @@ static bool socks4_negotiate(struct pool *pool, int sockd, bool socks4a)
     buf[0] = 0x04;
     buf[1] = 0x01;
     port = atoi(pool->stratum_port);
-    buf[2] = port >> 8;
-    buf[3] = port & 0xff;
+    buf[2] = (char) (port >> 8);
+    buf[3] = (char) (port & 0xff);
     sprintf(&buf[8], "CGMINER");
 
     /* See if we've been given an IP address directly to avoid needing to
      * resolve it. */
     inp = inet_addr(pool->sockaddr_url);
     inp = ntohl(inp);
-    if ((int)inp != -1)
+    if ((in_addr_t)inp != -1)
         socks4a = false;
     else
     {
         /* Try to extract the IP address ourselves first */
         struct addrinfo servinfobase, *servinfo, hints;
 
-        servinfo = &servinfobase;
+        servinfo = (struct addrinfo *) &servinfobase;
         memset(&hints, 0, sizeof(struct addrinfo));
         hints.ai_family = AF_INET; /* IPV4 only */
         if (!getaddrinfo(pool->sockaddr_url, NULL, &hints, &servinfo))
@@ -2712,7 +2712,7 @@ static bool socks4_negotiate(struct pool *pool, int sockd, bool socks4a)
 
     if (!socks4a)
     {
-        if ((int)inp == -1)
+        if ((in_addr_t)inp == -1)
         {
             applog(LOG_WARNING, "Invalid IP address specified for socks4 proxy: %s",
                    pool->sockaddr_url);
@@ -2735,7 +2735,7 @@ static bool socks4_negotiate(struct pool *pool, int sockd, bool socks4a)
         len = strlen(pool->sockaddr_url);
         if (len > 255)
             len = 255;
-        cg_memcpy(&buf[16], pool->sockaddr_url, len);
+        cg_memcpy(&buf[16], pool->sockaddr_url, (unsigned int)len);
         len += 16;
         buf[len++] = '\0';
         send(sockd, buf, len, 0);
@@ -2756,37 +2756,25 @@ static bool socks4_negotiate(struct pool *pool, int sockd, bool socks4a)
 
 static void noblock_socket(SOCKETTYPE fd)
 {
-#ifndef WIN32
+
     int flags = fcntl(fd, F_GETFL, 0);
-
     fcntl(fd, F_SETFL, O_NONBLOCK | flags);
-#else
-    u_long flags = 1;
 
-    ioctlsocket(fd, FIONBIO, &flags);
-#endif
 }
 
 static void block_socket(SOCKETTYPE fd)
 {
-#ifndef WIN32
+
     int flags = fcntl(fd, F_GETFL, 0);
-
     fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
-#else
-    u_long flags = 0;
 
-    ioctlsocket(fd, FIONBIO, &flags);
-#endif
 }
 
 static bool sock_connecting(void)
 {
-#ifndef WIN32
+
     return errno == EINPROGRESS;
-#else
-    return WSAGetLastError() == WSAEWOULDBLOCK;
-#endif
+
 }
 static bool setup_stratum_socket(struct pool *pool)
 {
@@ -3092,7 +3080,7 @@ resend:
     pool->nonce1 = nonce1;
     pool->n1_len = strlen(nonce1) / 2;
     free(pool->nonce1bin);
-    pool->nonce1bin = cgcalloc(pool->n1_len, 1);
+    pool->nonce1bin = cgcalloc(pool->n1_len, (size_t)1);
     hex2bin(pool->nonce1bin, pool->nonce1, pool->n1_len);
     pool->n2size = n2size;
     cg_wunlock(&pool->data_lock);
@@ -3424,7 +3412,7 @@ int _cgsem_mswait(cgsem_t *cgsem, int ms, const char *file, const char *func, co
 
     cgtime(&tv_now);
     timeval_to_spec(&ts_now, &tv_now);
-    ms_to_timespec(&abs_timeout, ms);
+    ms_to_timespec(&abs_timeout, (int64_t)ms);
 retry:
     timeraddspec(&abs_timeout, &ts_now);
     ret = sem_timedwait(cgsem, &abs_timeout);
@@ -3737,15 +3725,15 @@ void cg_logwork(struct work *work, unsigned char *nonce_bin, bool ok)
         memcpy(midstate_tmp, work->midstate, 32);
         memcpy(data_tmp, work->data+64, 12);
         memcpy(hash_tmp, work->hash, 32);
-        rev((void *)midstate_tmp, 32);
-        rev((void *)data_tmp, 12);
-        rev((void *)hash_tmp, 32);
-        szworkdata = bin2hex((void *)work->data, 128);
-        szmidstate = bin2hex((void *)midstate_tmp, 32);
-        szdata = bin2hex((void *)data_tmp, 12);
-        sznonce4 = bin2hex((void *)nonce_bin, 4);
-        sznonce5 = bin2hex((void *)nonce_bin, 5);
-        szhash = bin2hex((void *)hash_tmp, 32);
+        rev((void *)midstate_tmp, (size_t)32);
+        rev((void *)data_tmp, (size_t)12);
+        rev((void *)hash_tmp, (size_t)32);
+        szworkdata = bin2hex((void *)work->data, (size_t)128);
+        szmidstate = bin2hex((void *)midstate_tmp, (size_t)32);
+        szdata = bin2hex((void *)data_tmp, (size_t)12);
+        sznonce4 = bin2hex((void *)nonce_bin, (size_t)4);
+        sznonce5 = bin2hex((void *)nonce_bin, (size_t)5);
+        szhash = bin2hex((void *)hash_tmp, (size_t)32);
         worksharediff = share_ndiff(work);
         sprintf(szmsg, "%s %08x midstate %s data %s nonce %s hash %s diff %I64d", ok?"o":"x", work->id, szmidstate, szdata, sznonce5, szhash, worksharediff);
         if(strcmp(opt_logwork_path, "screen") == 0)

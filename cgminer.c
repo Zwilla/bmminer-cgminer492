@@ -468,7 +468,7 @@ static bool should_run(void)
     {
         if (!schedstop.enable)
         {
-            if (time_before(tm, &schedstart.tm))
+            if (time_before(tm, (struct tm *) &schedstart.tm))
             {
                 return false;
             }
@@ -477,9 +477,9 @@ static bool should_run(void)
             schedstart.enable = false;
             return true;
         }
-        if (time_before(&schedstart.tm, &schedstop.tm))
+        if (time_before((struct tm *) &schedstart.tm, (struct tm *) &schedstop.tm))
         {
-            if (time_before(tm, &schedstop.tm) && !time_before(tm, &schedstart.tm))
+            if (time_before((struct tm *) tm, (struct tm *) &schedstop.tm) && !time_before((struct tm *) tm, (struct tm *) &schedstart.tm))
             {
                 return true;
             }
@@ -488,9 +488,9 @@ static bool should_run(void)
         }
 
         /* Times are reversed */
-        if (time_before(tm, &schedstart.tm))
+        if (time_before((struct tm *) tm, (struct tm *) &schedstart.tm))
         {
-            if (time_before(tm, &schedstop.tm))
+            if (time_before((struct tm *) tm, (struct tm *) &schedstop.tm))
             {
                 return true;
             }
@@ -501,7 +501,7 @@ static bool should_run(void)
         return true;
     }
     /* only schedstop.enable == true */
-    if (!time_before(tm, &schedstop.tm))
+    if (!time_before(tm, (struct tm *) &schedstop.tm))
     {
         return false;
     }
@@ -667,7 +667,7 @@ void adjust_quota_gcd(void)
     for (i = 0; i < total_pools; i++)
     {
         pool = pools[i];
-        quota = pool->quota;
+        quota = (unsigned long) pool->quota;
 
         if (!quota)
         {
@@ -710,7 +710,7 @@ void adjust_quota_gcd(void)
         pool = pools[i];
         pool->quota_used *= global_quota_gcd;
         pool->quota_used /= gcd;
-        pool->quota_gcd = pool->quota / gcd;
+        pool->quota_gcd = (int) (pool->quota / gcd);
     }
 
     global_quota_gcd = gcd;
@@ -723,7 +723,7 @@ struct pool *add_pool(void)
 {
     struct pool *pool;
 
-    pool = cgcalloc(sizeof(struct pool), 1);
+    pool = cgcalloc(sizeof(struct pool), (size_t)1);
 
 #ifdef USE_BITMAIN_C5
     pool->support_vil = false; // TODO: why does S9 not support vil mode?
@@ -1011,7 +1011,7 @@ static char *setup_url(struct pool *pool, char *arg)
     {
         char *httpinput;
 
-        httpinput = cgmalloc(256);
+        httpinput = cgmalloc((size_t)256);
 
         strcpy(httpinput, "stratum+tcp://");
         strncat(httpinput, arg, 242);
@@ -2903,36 +2903,36 @@ static void suffix_string(uint64_t val, char *buf, size_t bufsiz, int sigdigits)
     if (val >= exa)
     {
         val /= peta;
-        dval = (double)val / dkilo;
+        dval = (double)(val / dkilo);
         strcpy(suffix, "E");
     }
     else if (val >= peta)
     {
         val /= tera;
-        dval = (double)val / dkilo;
+        dval = (double)(val / dkilo);
         strcpy(suffix, "P");
     }
     else if (val >= tera)
     {
         val /= giga;
-        dval = (double)val / dkilo;
+        dval = (double)(val / dkilo);
         strcpy(suffix, "T");
     }
     else if (val >= giga)
     {
         val /= mega;
-        dval = (double)val / dkilo;
+        dval = (double)(val / dkilo);
         strcpy(suffix, "G");
     }
     else if (val >= mega)
     {
         val /= kilo;
-        dval = (double)val / dkilo;
+        dval = (double)(val / dkilo);
         strcpy(suffix, "M");
     }
     else if (val >= kilo)
     {
-        dval = (double)val / dkilo;
+        dval = (double)(val / dkilo);
         strcpy(suffix, "K");
     }
     else
@@ -3550,12 +3550,12 @@ static void share_result(
                 reason[0] = ' ';
                 reason[1] = '(';
 
-                cg_memcpy(2 + reason, reasontmp, reasonLen);
+                cg_memcpy(2 + reason, reasontmp, (size_t)reasonLen);
 
                 reason[reasonLen + 2] = ')';
                 reason[reasonLen + 3] = '\0';
 
-                cg_memcpy(disposition + 7, reasontmp, reasonLen);
+                cg_memcpy(disposition + 7, reasontmp, (size_t)reasonLen);
                 disposition[6] = ':'; disposition[reasonLen + 7] = '\0';
             }
             else if (work->stratum && err)
@@ -4258,7 +4258,7 @@ static bool benchfile_get_work(struct work *work)
                          " - field count is %d but should be %d",
                          benchfile_line, i, BENCHWORK_COUNT);
                 }
-                len = commas[i] - commas[i-1];
+                len = (int) (commas[i] - commas[i - 1]);
                 if (benchfile_data[i-1].length &&
                     (len != benchfile_data[i-1].length))
                 {
@@ -4310,7 +4310,7 @@ static bool benchfile_get_work(struct work *work)
 
             memset(work, 0, sizeof(*work));
 
-            hex2bin(work->data, item, j >> 1);
+            hex2bin(work->data, item, (size_t)(j >> 1));
 
             calc_midstate(work);
 
@@ -4555,10 +4555,10 @@ static void modify_ntime(char *ntime, int noffset)
     unsigned char bin[4];
     uint32_t h32, *be32 = (uint32_t *)bin;
 
-    hex2bin(bin, ntime, 4);
+    hex2bin(bin, ntime, (size_t) 4);
     h32 = be32toh(*be32) + noffset;
     *be32 = htobe32(h32);
-    __bin2hex(ntime, bin, 4);
+    __bin2hex(ntime, bin, (size_t) 4);
 }
 
 
@@ -4831,11 +4831,11 @@ static char *offset_ntime(const char *ntime, int noffset)
     unsigned char bin[4];
     uint32_t h32, *be32 = (uint32_t *)bin;
 
-    hex2bin(bin, ntime, 4);
+    hex2bin(bin, ntime, (size_t) 4);
     h32   = be32toh(*be32) + noffset;
     *be32 = htobe32(h32);
 
-    return bin2hex(bin, 4);
+    return bin2hex(bin, (size_t) 4);
 }
 
 /* Duplicates any dynamically allocated arrays within the work struct to
@@ -4904,7 +4904,7 @@ void set_work_ntime(struct work *work, int ntime)  // only for bitfury? set_work
     if (work->ntime)
     {
         free(work->ntime);
-        work->ntime = bin2hex((unsigned char *)work_ntime, 4);
+        work->ntime = bin2hex((unsigned char *)work_ntime, (size_t) 4);
     }
 }
 
@@ -5001,7 +5001,7 @@ static bool stale_work(struct work *work, bool share)
 
     /* Factor in the average getwork delay of this pool, rounding it up to
      * the nearest second */
-    getwork_delay = pool->cgminer_pool_stats.getwork_wait_rolling * 5 + 1;
+    getwork_delay = (int) (pool->cgminer_pool_stats.getwork_wait_rolling * 5 + 1);
     work_expiry -= getwork_delay;
 
     if (unlikely(work_expiry < 5))
@@ -5452,7 +5452,7 @@ static void set_blockdiff(const struct work *work)
 
     if (unlikely(current_diff != ddiff))
     {
-        suffix_string(ddiff, block_diff, sizeof(block_diff), 0);
+        suffix_string((uint64_t)ddiff, block_diff, sizeof(block_diff), 0);
         current_diff = ddiff;
         applog(LOG_NOTICE, "Network diff set to %s", block_diff);
     }
@@ -5469,7 +5469,7 @@ static bool block_exists(const char *hexstr, const unsigned char *bedata, const 
     HASH_FIND_STR(blocks, hexstr, s);
     if (!s)
     {
-        s = cgcalloc(sizeof(struct block), 1);
+        s = cgcalloc(sizeof(struct block), (size_t) 1);
 
         if (unlikely(!s))
         {
@@ -5534,7 +5534,7 @@ static bool test_work_current(struct work *work)
     }
 
     swap256(bedata, work->data + 4);
-    __bin2hex(hexstr, bedata, 32);
+    __bin2hex(hexstr, bedata, (size_t) 32);
 
     /* Calculate block height */
     if (cb_height_sz <= 4)
@@ -6920,7 +6920,7 @@ static void hashmeter(int thr_id, uint64_t hashes_done)
 
         copy_time(&cgpu->last_message_tv, &total_tv_end);
 
-        thr_mhs = (double)hashes_done / device_tdiff / 1000000;
+        thr_mhs = (double) (hashes_done / device_tdiff / 1000000);
 
         applog(LOG_DEBUG, "[thread %d: %"PRIu64" hashes, %.1f mhash/sec]", thr_id, hashes_done, thr_mhs);
         hashes_done /= 1000000;
@@ -6928,10 +6928,10 @@ static void hashmeter(int thr_id, uint64_t hashes_done)
         mutex_lock(&hash_lock);
         cgpu->total_mhashes += hashes_done;
 
-        decay_time(&cgpu->rolling,   hashes_done, device_tdiff, opt_log_interval);
-        decay_time(&cgpu->rolling1,  hashes_done, device_tdiff, 60.0);
-        decay_time(&cgpu->rolling5,  hashes_done, device_tdiff, 300.0);
-        decay_time(&cgpu->rolling15, hashes_done, device_tdiff, 900.0);
+        decay_time(&cgpu->rolling,   (double)(hashes_done / 1), device_tdiff, opt_log_interval);
+        decay_time(&cgpu->rolling1,  (double)(hashes_done / 1), device_tdiff, 60.0);
+        decay_time(&cgpu->rolling5,  (double)(hashes_done / 1), device_tdiff, 300.0);
+        decay_time(&cgpu->rolling15, (double)(hashes_done / 1), device_tdiff, 900.0);
         mutex_unlock(&hash_lock);
 
         if (want_per_device_stats && showlog)
@@ -7004,11 +7004,12 @@ static void hashmeter(int thr_id, uint64_t hashes_done)
         }
 
         // decay_time(&total_rolling, hashes_done, tv_tdiff, opt_log_interval);
-        decay_time(&total_rolling, local_mhashes_done, opt_log_interval, opt_log_interval);
-        decay_time(&rolling1, hashes_done, tv_tdiff, 60.0);
-        decay_time(&rolling5, hashes_done,tv_tdiff, 300.0);
-        decay_time(&rolling15, hashes_done, tv_tdiff, 900.0);
-        global_hashrate = llround(total_rolling) * 1000000;
+        decay_time(&total_rolling, (double)(local_mhashes_done / 1), opt_log_interval, opt_log_interval);
+        decay_time(&rolling1, (double)(hashes_done / 1), tv_tdiff, 60.0);
+        decay_time(&rolling5, (double)(hashes_done / 1),tv_tdiff, 300.0);
+        decay_time(&rolling15, (double)(hashes_done / 1), tv_tdiff, 900.0);
+        global_hashrate = (unsigned long long int) (total_rolling * 1000000ull);
+
         g_local_mhashes_dones[g_local_mhashes_index] = 0;
     }
 
@@ -7500,7 +7501,7 @@ static void *stratum_sthread(void *userdata)
 
         if (unlikely(work->nonce2_len > 8))
         {
-            applog(LOG_ERR, "Pool %d asking for inappropriately long nonce2 length %d", pool->pool_no, (int)work->nonce2_len);
+            applog(LOG_ERR, "Pool %d asking for inappropriately long nonce2 length %d", pool->pool_no, (size_t) work->nonce2_len);
             applog(LOG_ERR, "Not attempting to submit shares");
             free_work(work);
             continue;
@@ -7520,10 +7521,10 @@ static void *stratum_sthread(void *userdata)
 
         last_nonce = nonce;
         last_nonce2 = *nonce2_64;
-        __bin2hex(noncehex, (const unsigned char *)&nonce, 4);
+        __bin2hex(noncehex, (const unsigned char *)&nonce, (size_t) 4);
         __bin2hex(nonce2hex, nonce2, work->nonce2_len);
 
-        sshare = cgcalloc(sizeof(struct stratum_share), 1);
+        sshare = cgcalloc(sizeof(struct stratum_share), (size_t) 1);
         hash32 = (uint32_t *)work->hash;
         submitted = false;
 
@@ -8499,7 +8500,7 @@ struct work *get_work(struct thr_info *thr, const int thr_id)
      * device failures. */
     if (diff_t > 0)
     {
-        applog(LOG_DEBUG, "Get work blocked for %d seconds", (int)diff_t);
+        applog(LOG_DEBUG, "Get work blocked for %d seconds", (time_t)diff_t);
         cgpu->last_device_valid_work += diff_t;
     }
 
@@ -8951,7 +8952,7 @@ static void hash_sole_work(struct thr_info *mythr)
             pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
             thread_reportin(mythr);
-            hashes = drv->scanhash(mythr, work, work->nonce + max_nonce);
+            hashes = drv->scanhash(mythr, work, (int64_t)(work->nonce + max_nonce));
             thread_reportout(mythr);
 
             pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -9024,7 +9025,7 @@ static void hash_sole_work(struct thr_info *mythr)
             if ((hashes_done && (diff.tv_sec > 0 || diff.tv_usec > 200000)) ||
                 diff.tv_sec >= opt_log_interval)
             {
-                hashmeter(thr_id, hashes_done);
+                hashmeter(thr_id, (uint64_t)hashes_done);
                 hashes_done = 0;
                 copy_time(&tv_lastupdate, tv_end);
             }
@@ -9055,7 +9056,7 @@ static void hash_sole_work(struct thr_info *mythr)
             sdiff.tv_sec = sdiff.tv_usec = 0;
         }
 
-        while (!abandon_work(work, &wdiff, cgpu->max_hashes));
+        while (!abandon_work(work, &wdiff, (uint64_t)cgpu->max_hashes));
 
         free_work(work);
     }
@@ -9398,7 +9399,7 @@ void hash_queued_work(struct thr_info *mythr)
         /* Update the hashmeter at most 5 times per second */
         if ((hashes_done && (diff.tv_sec > 0 || diff.tv_usec > 200000)) || diff.tv_sec >= opt_log_interval)
         {
-            hashmeter(thr_id, hashes_done);
+            hashmeter(thr_id, (uint64_t)hashes_done);
             hashes_done = 0;
             copy_time(&tv_start, &tv_end);
         }
@@ -9457,7 +9458,7 @@ void hash_driver_work(struct thr_info *mythr)
         if ((hashes_done && (diff.tv_sec > 0 || diff.tv_usec > 200000)) ||
             diff.tv_sec >= opt_log_interval)
         {
-            hashmeter(thr_id, hashes_done);
+            hashmeter(thr_id, (uint64_t)hashes_done);
             hashes_done = 0;
             copy_time(&tv_start, &tv_end);
         }
@@ -10729,7 +10730,7 @@ static bool noop_thread_prepare(struct thr_info __maybe_unused *thr)
 
 static uint64_t noop_can_limit_work(struct thr_info __maybe_unused *thr)
 {
-    return 0xffffffff;
+    return (uint64_t)0xffffffff;
 }
 
 static bool noop_thread_init(struct thr_info __maybe_unused *thr)
@@ -11302,7 +11303,7 @@ int main(int argc, char *argv[])
     logstart = devcursor + 1;
     logcursor = logstart + 1;
 
-    block = cgcalloc(sizeof(struct block), 1);
+    block = cgcalloc(sizeof(struct block), (size_t) 1);
 
     for (i = 0; i < 36; i++)
     {
@@ -11361,8 +11362,8 @@ int main(int argc, char *argv[])
 
         for (i = 0; i < 16; i++)
         {
-            hex2bin(&bench_hidiff_bins[i][0], &bench_hidiffs[i][0], 160);
-            hex2bin(&bench_lodiff_bins[i][0], &bench_lodiffs[i][0], 160);
+            hex2bin(&bench_hidiff_bins[i][0], &bench_hidiffs[i][0], (size_t) 160);
+            hex2bin(&bench_lodiff_bins[i][0], &bench_lodiffs[i][0], (size_t) 160);
         }
 
         set_target(bench_target, 32);

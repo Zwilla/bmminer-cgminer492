@@ -438,7 +438,7 @@ static bool setgetdes(ssize_t count, libusb_device *dev, struct libusb_device_ha
 	err = libusb_set_configuration(handle, cd);
 	if (err) {
 		snprintf(tmp, sizeof(tmp), EOL "  ** dev %d: Failed to set config descriptor to %d, err %d",
-				(int)count, cd, err);
+				(int)(count / 1), cd, err);
 		append(buf, tmp, off, len);
 		return false;
 	}
@@ -446,13 +446,13 @@ static bool setgetdes(ssize_t count, libusb_device *dev, struct libusb_device_ha
 	err = libusb_get_active_config_descriptor(dev, config);
 	if (err) {
 		snprintf(tmp, sizeof(tmp), EOL "  ** dev %d: Failed to get active config descriptor set to %d, err %d",
-				(int)count, cd, err);
+                 (int)(count / 1), cd, err);
 		append(buf, tmp, off, len);
 		return false;
 	}
 
 	snprintf(tmp, sizeof(tmp), EOL "  ** dev %d: Set & Got active config descriptor to %d, err %d",
-			(int)count, cd, err);
+             (int)(count / 1), cd, err);
 	append(buf, tmp, off, len);
 	return true;
 }
@@ -627,7 +627,7 @@ void usb_all(int level)
 
 	count = libusb_get_device_list(NULL, &list);
 	if (count < 0) {
-		applog(LOG_ERR, "USB all: failed, err:(%d) %s", (int)count, libusb_error_name((int)count));
+		applog(LOG_ERR, "USB all: failed, err:(%d) %s", (int)(count / 1), libusb_error_name((int)(count / 1)));
 		return;
 	}
 
@@ -640,7 +640,7 @@ void usb_all(int level)
 		if (unlikely(!buf))
 			quit(1, "USB failed to malloc buf in usb_all");
 
-		sprintf(buf, "USB all: found %d devices", (int)count);
+		sprintf(buf, "USB all: found %d devices", (int)(count / 1));
 		off = strlen(buf);
 
 		if (!opt_usb_list_all)
@@ -898,7 +898,7 @@ void usb_list(void)
 
 	count = libusb_get_device_list(NULL, &list);
 	if (count < 0) {
-		applog(LOG_ERR, "USB list: failed, err:(%d) %s", (int)count, libusb_error_name((int)count));
+		applog(LOG_ERR, "USB list: failed, err:(%d) %s", (int)(count / 1), libusb_error_name((int)(count / 1)));
 		return;
 	}
 	if (count == 0) {
@@ -912,7 +912,7 @@ void usb_list(void)
 
 		err = libusb_get_device_descriptor(dev, &desc);
 		if (err) {
-			applog(LOG_WARNING, "USB list: Failed to get descriptor %d", (int)i);
+			applog(LOG_WARNING, "USB list: Failed to get descriptor %d", (ssize_t)i);
 			break;
 		}
 
@@ -931,7 +931,7 @@ void usb_list(void)
 
 		err = libusb_open(dev, &handle);
 		if (err) {
-			applog(LOG_WARNING, "USB list: Failed to open %d", (int)i);
+			applog(LOG_WARNING, "USB list: Failed to open %d", (ssize_t)i);
 			break;
 		}
 		libusb_get_string_descriptor_ascii(handle, desc.iManufacturer, manuf, 255);
@@ -1832,7 +1832,7 @@ void __usb_detect(struct device_drv *drv, struct cgpu_info *(*device_detect)(str
 
 	count = libusb_get_device_list(NULL, &list);
 	if (count < 0) {
-		applog(LOG_DEBUG, "USB scan devices: failed, err %d", (int)count);
+		applog(LOG_DEBUG, "USB scan devices: failed, err %d", (int)(count / 1));
 		return;
 	}
 
@@ -1854,14 +1854,14 @@ void __usb_detect(struct device_drv *drv, struct cgpu_info *(*device_detect)(str
 			break;
 		}
 
-		found = usb_check(drv, list[i]);
+		found = usb_check(drv, (struct libusb_device *) list[i]);
 		if (found != NULL) {
 			bool new_dev = false;
 
 			if (is_in_use(list[i]) || cgminer_usb_lock(drv, list[i]) == false)
 				free(found);
 			else {
-				cgpu = device_detect(list[i], found);
+				cgpu = device_detect((struct libusb_device *) list[i], found);
 				if (!cgpu)
 					cgminer_usb_unlock(drv, list[i]);
 				else {
@@ -2231,7 +2231,7 @@ static int usb_transfer_toerr(int ret)
  * use our own timer to cancel the request if we go beyond the timeout. */
 static int callback_wait(struct usb_transfer *ut, int *transferred, unsigned int timeout)
 {
-	struct libusb_transfer *transfer= ut->transfer;
+	struct libusb_transfer *transfer= (struct libusb_transfer *) ut->transfer;
 	int ret;
 
 	ret = cgsem_mswait(&ut->cgsem, timeout);
@@ -2280,7 +2280,7 @@ usb_perform_transfer(struct cgpu_info *cgpu, struct cg_usb_device *usbdev, int i
 		  __maybe_unused int seq, bool cancellable, bool tt)
 {
 	int bulk_timeout, callback_timeout = timeout, err_retries = 0;
-	struct libusb_device_handle *dev_handle = usbdev->handle;
+	struct libusb_device_handle *dev_handle = (struct libusb_device_handle *) usbdev->handle;
 	struct usb_epinfo *usb_epinfo;
 	struct usb_transfer ut;
 	unsigned char endpoint;
@@ -2318,7 +2318,7 @@ err_retry:
 	init_usb_transfer(&ut);
 
 	if ((endpoint & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_OUT) {
-		cg_memcpy(buf, data, length);
+		cg_memcpy(buf, data, (unsigned int)length);
 #ifndef HAVE_LIBUSB
 		/* Older versions may not have this feature so only enable it
 		 * when we know we're compiling with included static libusb. We
@@ -2340,10 +2340,10 @@ err_retry:
 					  length, transfer_callback, &ut, bulk_timeout);
 	}
 	STATS_TIMEVAL(&tv_start);
-	err = usb_submit_transfer(&ut, ut.transfer, cancellable, tt);
+	err = usb_submit_transfer(&ut, (struct libusb_transfer *) ut.transfer, cancellable, tt);
 	errn = errno;
 	if (!err)
-		err = callback_wait(&ut, transferred, callback_timeout);
+		err = callback_wait(&ut, transferred, (unsigned int) callback_timeout);
 	else
 		err = usb_transfer_toerr(err);
 	complete_usb_transfer(&ut);
@@ -2381,7 +2381,7 @@ out_fail:
 	if (NODEV(err))
 		*transferred = 0;
 	else if ((endpoint & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN && *transferred)
-		cg_memcpy(data, buf, *transferred);
+		cg_memcpy(data, buf, (unsigned int) *transferred);
 
 	return err;
 }
@@ -2446,7 +2446,7 @@ int _usb_read(struct cgpu_info *cgpu, int intinfo, int epinfo, char *buf, size_t
 	USBDEBUG("USB debug: _usb_read(%s (nodev=%s),intinfo=%d,epinfo=%d,buf=%p,bufsiz=%d,proc=%p,timeout=%u,end=%s,cmd=%s,ftdi=%s,readonce=%s)", cgpu->drv->name, bool_str(cgpu->usbinfo.nodev), intinfo, epinfo, buf, (int)bufsiz, processed, timeout, end ? (char *)str_text((char *)end) : "NULL", usb_cmdname(cmd), bool_str(ftdi), bool_str(readonce));
 
 	if (bufsiz > USB_MAX_READ)
-		quit(1, "%s USB read request %d too large (max=%d)", cgpu->drv->name, (int)bufsiz, USB_MAX_READ);
+		quit(1, "%s USB read request %d too large (max=%d)", cgpu->drv->name, (size_t)bufsiz, USB_MAX_READ);
 
 	if (timeout == DEVTIMEOUT)
 		timeout = usbdev->found->timeout;
@@ -2454,7 +2454,7 @@ int _usb_read(struct cgpu_info *cgpu, int intinfo, int epinfo, char *buf, size_t
 	tot = usbdev->bufamt;
 	bufleft = bufsiz - tot;
 	if (tot)
-		cg_memcpy(usbbuf, usbdev->buffer, tot);
+		cg_memcpy(usbbuf, usbdev->buffer, (unsigned int) tot);
 	ptr = usbbuf + tot;
 	usbdev->bufamt = 0;
 
@@ -2462,7 +2462,7 @@ int _usb_read(struct cgpu_info *cgpu, int intinfo, int epinfo, char *buf, size_t
 	if (end != NULL)
 		eom = strstr((const char *)usbbuf, end);
 
-	initial_timeout = timeout;
+	initial_timeout = (unsigned int) timeout;
 	cgtime(&read_start);
 	tried_reset = 0;
 	while (bufleft > 0 && !eom) {
@@ -2534,7 +2534,7 @@ int _usb_read(struct cgpu_info *cgpu, int intinfo, int epinfo, char *buf, size_t
 	}
 
 	// N.B. usbdev->buffer was emptied before the while() loop
-	if (tot > (int)bufsiz) {
+	if (tot > (size_t)bufsiz) {
 		usbdev->bufamt = tot - bufsiz;
 		cg_memcpy(usbdev->buffer, usbbuf + bufsiz, usbdev->bufamt);
 		tot -= usbdev->bufamt;
@@ -2544,7 +2544,7 @@ int _usb_read(struct cgpu_info *cgpu, int intinfo, int epinfo, char *buf, size_t
 	}
 
 	*processed = tot;
-	cg_memcpy(buf, (const char *)usbbuf, (tot < (int)bufsiz) ? tot + 1 : (int)bufsiz);
+	cg_memcpy(buf, (const char *)usbbuf, (tot < (size_t)bufsiz) ? tot + 1 : (size_t)bufsiz);
 
 out_noerrmsg:
 	if (NODEV(err)) {
@@ -2589,7 +2589,7 @@ int _usb_write(struct cgpu_info *cgpu, int intinfo, int epinfo, char *buf, size_
 	cgtime(&write_start);
 	tried_reset = 0;
 	while (bufsiz > 0) {
-		int tosend = bufsiz;
+		int tosend = (size_t)bufsiz;
 
 		/* USB 1.1 devices don't handle zero packets well so split them
 		 * up to not have the final transfer equal to the wMaxPacketSize
@@ -2636,7 +2636,7 @@ int _usb_write(struct cgpu_info *cgpu, int intinfo, int epinfo, char *buf, size_
 
 		done = tdiff(&tv_finish, &write_start);
 		// N.B. this is: return last err with whatever size was written
-		timeout = initial_timeout - (done * 1000);
+		timeout = (int) (initial_timeout - (done * 1000));
 		if (timeout <= 0)
 			break;
 	}
