@@ -194,7 +194,7 @@
 
 #define MIDSTATE_LEN					32              // MIDSTATE len = 32 Asicboost ? 2.5 Building work items
 #define DATA2_LEN						12              // 12 bytes ??
-#define MAX_RETURNED_NONCE_NUM			100              // Default 10, now testing 13
+#define MAX_RETURNED_NONCE_NUM			5              // Default 10, now testing 5
 #define PREV_HASH_LEN					32              // fixed 2.2 The Bitcoin block header (32 bytes)
 #define MERKLE_BIN_LEN					32              // fixed 2.2 The Bitcoin block header (32 bytes) Merkle root Head = 28 Version= 4 ??
 #define INIT_CONFIG_TYPE				0x51
@@ -258,7 +258,7 @@ struct init_config
     uint8_t		asic_num;
     uint8_t		fan_pwm_percent;
     uint8_t		temperature;
-    uint16_t	frequency;
+    unsigned short frequency;
     uint8_t		voltage[2];
     uint8_t		chain_check_time_integer;
     uint8_t		chain_check_time_fractions;
@@ -313,7 +313,7 @@ struct bitmain_c5_info
     uint32_t pool2_given_id;
 
     uint16_t	crc;
-} __attribute__((packed, aligned(4)));
+}__attribute__((packed, aligned(4)));
 
 
 struct part_of_job
@@ -353,7 +353,7 @@ struct nonce_content
     uint32_t	nonce3;
     uint32_t	chain_num;
     uint8_t		midstate[MIDSTATE_LEN]; // MIDSTATE_LEN = 32
-} __attribute__((packed, aligned(4)));
+}__attribute__((packed, aligned(4)));
 
 
 struct nonce
@@ -364,7 +364,7 @@ struct nonce
     uint16_t	valid_nonce_num;
     struct nonce_content nonce_cont[MAX_RETURNED_NONCE_NUM]; // (default:10)
     uint16_t	crc;
-} __attribute__((packed, aligned(4)));
+}__attribute__((packed, aligned(4)));
 
 
 struct all_parameters
@@ -379,7 +379,8 @@ struct all_parameters
     unsigned int	nonce_error;
     unsigned int	chain_asic_exist[BITMAIN_MAX_CHAIN_NUM][8];
     unsigned int	chain_asic_status[BITMAIN_MAX_CHAIN_NUM][8];
-    int16_t			chain_asic_temp[BITMAIN_MAX_CHAIN_NUM][8][4];
+
+    unsigned int	chain_asic_temp[BITMAIN_MAX_CHAIN_NUM][8][4];
     int8_t			chain_asic_iic[CHAIN_ASIC_NUM];
     uint32_t		chain_hw[BITMAIN_MAX_CHAIN_NUM];
     uint64_t		chain_asic_nonce[BITMAIN_MAX_CHAIN_NUM][BITMAIN_DEFAULT_ASIC_NUM];
@@ -406,21 +407,23 @@ struct all_parameters
     unsigned char	diff;
     uint8_t			fan_eft;
     uint8_t			fan_pwm;
-    uint8_t displayed_rate[16];
+    uint8_t         displayed_rate[16];
 
     unsigned short int	frequency;
     char frequency_t[10];
     unsigned short int	freq[BITMAIN_MAX_CHAIN_NUM];
-} __attribute__((packed, aligned(4)));
+}__attribute__((packed, aligned(4)));
 
-
+//volatile struct nonce_buf
 volatile struct nonce_buf
 {
     unsigned int p_wr;
     unsigned int p_rd;
     unsigned int nonce_num;
+    //void spinlock(spinlock_t *lock);
     struct nonce_content nonce_buffer[MAX_NONCE_NUMBER_IN_FIFO];
 }__attribute__((packed, aligned(4)));
+
 
 
 struct reg_content
@@ -428,9 +431,9 @@ struct reg_content
     unsigned int reg_value;
     unsigned char crc;
     unsigned char chain_number;
-} __attribute__((packed, aligned(4)));
+}__attribute__((packed, aligned(4)));
 
-
+//volatile struct reg_buf
 volatile struct reg_buf
 {
     unsigned int p_wr;

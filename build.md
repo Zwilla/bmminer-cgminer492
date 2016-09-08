@@ -17,6 +17,8 @@ do this:
 
 cp /usr/bin/bmminer-perceft /usr/bin/bmminer
 
+strip cgminer
+
 mv /usr/bin/bmminer /usr/bin/bmminer-old
 
 cp cgminer /usr/bin/bmminer

@@ -124,8 +124,8 @@ static struct usb_find_devices find_dev[] = {
 		INTINFO(btm_ints) },
 	{
 		.drv = DRIVER_bitmain,
-		.name = "BC5",
-		.ident = IDENT_BC5,
+		.name = "BMS",
+		.ident = IDENT_BMS,
 		.idVendor = IDVENDOR_FTDI,
 		.idProduct = 0x6602,
 		.config = 1,

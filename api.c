@@ -1,4 +1,5 @@
 /*
+ * Copyright 2016 Miguel Padilla
  * Copyright 2011-2015 Andrew Smith
  * Copyright 2011-2015 Con Kolivas
  *
@@ -531,7 +532,7 @@ static bool io_add(struct io_data *io_data, char *buf)
         new = io_data->siz + (2 * SOCKBUFALLOCSIZ);
 
 		if (new < tot)
-			new = (2 + (size_t)((float)tot / (float)SOCKBUFALLOCSIZ)) * SOCKBUFALLOCSIZ;
+			new = (2 + (size_t)(tot / (float)SOCKBUFALLOCSIZ)) * SOCKBUFALLOCSIZ;
 
 		io_data->ptr = cgrealloc(io_data->ptr, new);
 		io_data->cur = io_data->ptr + dif;
@@ -739,19 +740,19 @@ static struct api_data *api_add_data_full(struct api_data *root, char *name, enu
             case API_UINT8:
 
                 /* Most OSs won't really alloc less than 4 */
-                api_data->data = cgmalloc(4);
+                api_data->data = cgmalloc((size_t)4);
                 *(uint8_t *)api_data->data = *(uint8_t *)data;
                 break;
             case API_INT16:
 
                 /* Most OSs won't really alloc less than 4 */
-                api_data->data = cgmalloc(4);
+                api_data->data = cgmalloc((size_t)4);
                 *(int16_t *)api_data->data = *(int16_t *)data;
                 break;
             case API_UINT16:
 
                 /* Most OSs won't really alloc less than 4 */
-                api_data->data = cgmalloc(4);
+                api_data->data = cgmalloc((size_t)4);
                 *(uint16_t *)api_data->data = *(uint16_t *)data;
                 break;
             case API_INT:
@@ -3320,6 +3321,7 @@ static void minerestats(struct io_data *io_data, __maybe_unused SOCKETTYPE c, __
 	for (j = 0; j < total_devices; j++)
     {
 		cgpu = get_devices(j);
+
 		if (!cgpu)
         {
             continue;
@@ -4893,11 +4895,11 @@ static void mcast()
 
 		if (SOCKETFAIL(rep = recvfrom(mcast_sock, buf, sizeof(buf) - 1, 0, (struct sockaddr *)(&came_from), &came_from_siz)))
         {
-			applog(LOG_DEBUG, "API mcast failed count=%d (%s) (%d)", count, SOCKERRMSG, (int)mcast_sock);
+			applog(LOG_DEBUG, "API mcast failed count=%d (%s) (%d)", count, SOCKERRMSG, mcast_sock);
 			continue;
 		}
 
-		addrok = check_connect(&came_from, &connectaddr, &group);
+		addrok = check_connect((struct sockaddr_storage *) &came_from, &connectaddr, &group);
 		applog(LOG_DEBUG, "API mcast from %s - %s", connectaddr, addrok ? "Accepted" : "Ignored");
 
         if (!addrok)
@@ -4912,7 +4914,7 @@ static void mcast()
 
 		getnameinfo((struct sockaddr *)(&came_from), came_from_siz, NULL, 0, came_from_port, sizeof(came_from_port), NI_NUMERICHOST);
 
-		applog(LOG_DEBUG, "API mcast request rep=%d (%s) from [%s]:%s", (int)rep, buf, connectaddr, came_from_port);
+		applog(LOG_DEBUG, "API mcast request rep=%d (%s) from [%s]:%s", rep, buf, connectaddr, came_from_port);
 
 		if ((size_t)rep > expect_code_len && memcmp(buf, expect_code, expect_code_len) == 0)
         {
@@ -4958,11 +4960,11 @@ static void mcast()
 
 				if (SOCKETFAIL(rep))
                 {
-					applog(LOG_DEBUG, "API mcast send reply failed (%s) (%d)", SOCKERRMSG, (int)reply_sock);
+					applog(LOG_DEBUG, "API mcast send reply failed (%s) (%d)", SOCKERRMSG, reply_sock);
 				}
                 else
                 {
-					applog(LOG_DEBUG, "API mcast send reply (%s) succeeded (%d) (%d)", replybuf, (int)rep, (int)reply_sock);
+					applog(LOG_DEBUG, "API mcast send reply (%s) succeeded (%d) (%d)", replybuf, rep, reply_sock);
 				}
 
 				CLOSESOCKET(reply_sock);
@@ -5195,7 +5197,7 @@ void api(int api_thr_id)
 			goto die;
 		}
 
-		addrok = check_connect((struct sockaddr_storage *)&cli, &connectaddr, &group);
+		addrok = check_connect((struct sockaddr_storage *) &cli, &connectaddr, &group);
 		applog(LOG_DEBUG, "API: connection from %s - %s",
 					connectaddr, addrok ? "Accepted" : "Ignored");
 

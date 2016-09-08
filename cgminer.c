@@ -57,6 +57,14 @@ char *curly = ":D";
 #include "miner.h"
 #include "bench_block.h"
 
+#ifdef USE_BITMAIN
+#include "driver-bitmain.h"
+#define USE_USBUTILS
+#endif
+
+#ifdef USE_BITMAIN_C5
+#include "driver-btm-c5.h"
+#endif
 
 #ifdef USE_USBUTILS
 #include "usbutils.h"
@@ -70,13 +78,7 @@ char *curly = ":D";
 
 
 
-#ifdef USE_BITMAIN
-#include "driver-bitmain.h"
-#endif
 
-#ifdef USE_BITMAIN_C5
-#include "driver-btm-c5.h"
-#endif
 
 
 
@@ -397,7 +399,7 @@ static struct stratum_share *stratum_shares = NULL;
 char *opt_socks_proxy = NULL;
 int opt_suggest_diff;
 
-int opt_multi_version = 1;  // set her to true / 1
+int opt_multi_version = 1;  // set here to true / 1
 
 static const char def_conf[] = "bmminer.conf";
 
@@ -1627,7 +1629,7 @@ static struct opt_table opt_config_table[] =
     OPT_WITH_ARG("--bitmain-fan",
     set_bitmain_fan, NULL, NULL,
     "Set fanspeed percentage for bitmain, single value or range (default: 20-100)"),
-    OPT_WITH_ARG("--bitmain-freq",
+    OPT_WITH_ARG("--bitmain-freq-S7",
     set_bitmain_freq, NULL, NULL,
     "Set frequency"),
     OPT_WITH_ARG("--bitmain-voltage",
@@ -1804,7 +1806,7 @@ static struct opt_table opt_config_table[] =
                  opt_set_intval, NULL, &opt_suggest_diff,
                  "Suggest miner difficulty for pool to user (default: none)"),
 
-    OPT_WITH_ARG("--multi-version-mining",
+    OPT_WITH_ARG("--multi-version",
                  opt_set_intval, NULL, &opt_multi_version,
                  "Multi version mining!"),
 
@@ -11170,7 +11172,9 @@ static void initialise_usb(void)
     pthread_create(&usb_poll_thread, NULL, libusb_poll_thread, NULL);
 }
 #else
+
 #define initialise_usb() {}
+
 #endif
 
 int main(int argc, char *argv[])
