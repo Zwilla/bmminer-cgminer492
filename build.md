@@ -16,6 +16,7 @@ now copy the file to your miner
 do this:
 
 cp /usr/bin/bmminer-perceft /usr/bin/bmminer
+
 mv /usr/bin/bmminer /usr/bin/bmminer-old
 
 cp cgminer /usr/bin/bmminer
