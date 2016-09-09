@@ -56,7 +56,7 @@ set -v
 # 
 mkdir -p /config/upgrade
 mkdir -p /config/downgrade
-
+touch /config/restoreConfig.sh
 chmod 777 /config/upgrade
 chmod 777 /config/downgrade
 
@@ -70,8 +70,11 @@ rm -rf /config/upgrade/bmminer-api.md5
 for f in bmminer.md5 bmminer-api.md5 bmminer-api bmminer; do
     if [ -f $f ] ; then
 	    cp $f /config/upgrade/
-    fi
+    fi;
 done
+
+chmod -R 777 /config/upgrade
+chmod -R 777 /config/downgrade
 
 md5ok1=$(md5sum -c /config/upgrade/bmminer.md5);
 md5ok2=$(md5sum -c /config/upgrade/bmminer-api.md5);
@@ -84,11 +87,69 @@ rm -- /usr/bin/bmminer
 rm -- /usr/bin/bmminer-api
 cp /config/upgrade/bmminer /usr/bin/bmminer
 cp /config/upgrade/bmminer-api /usr/bin/bmminer-api
+sync
+
 /etc/init.d/bmminer.sh restart
 fi;
 
-cd - >> /dev/null
-cp * /config/
-sync
+# CGI output must start with at least empty line (or headers)
+printf "Content-type: text/html\r\n\r\n"
+
+cat <<-EOH
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta http-equiv="Content-Script-Type" content="text/javascript" />
+<meta http-equiv="cache-control" content="no-cache" />
+<link rel="stylesheet" type="text/css" media="screen" href="/css/cascade.css" />
+<!--[if IE 6]><link rel="stylesheet" type="text/css" media="screen" href="/css/ie6.css" /><![endif]-->
+<!--[if IE 7]><link rel="stylesheet" type="text/css" media="screen" href="/css/ie7.css" /><![endif]-->
+<!--[if IE 8]><link rel="stylesheet" type="text/css" media="screen" href="/css/ie8.css" /><![endif]-->
+<script type="text/javascript" src="/js/xhr.js"></script>
+<script type="text/javascript" src="/js/jquery-1.10.2.js"></script>
+<script type="text/javascript" src="/js/json2.min.js"></script>
+<script>
+
+function f_submit_goback() {
+	window.location.href="/index.html";
+}
+</script>
+<title>Ant Miner</title>
+</head>
+EOH
+# CGI output must start with at least empty line (or headers)
+printf "Content-type: text/html\r\n\r\n"
+
+cat <<-EOH
+<!DOCTYPE HTML>
+<html lang="en-US">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="refresh" content="5; url=index.html;">
+        <script type="text/javascript">
+            window.location.href="/index.html";
+        </script>
+        
+        
+<script>
+function goBack() {
+    window.history.go(-2);
+}
+</script>
+
+        <title>Upgrade complete!</title>
+    </head>
+     <H1>Upgrade complete!</H1>
+    <body>
+       
+        If you are not redirected automatically, follow the <a href='f_submit_goback()'>link</a>
+    </body>
+</html>
+EOH
+
+
+
 
 # NOTE!!! Not yet tested !!!
