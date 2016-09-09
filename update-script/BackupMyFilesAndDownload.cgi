@@ -116,6 +116,7 @@ cp -p /config/downgrade/bmminer-orig $dir;
 cp -p /config/downgrade/bmminer-api-orig $dir;
 cp -p /config/downgrade/upgrade.html-orig $dir;
 
+
 > ./restoreConfig.sh
 echo 'mkdir -p /config/.old_config'                      >> ./restoreConfig.sh
 echo 'rm -rf /config/.old_config/*'                      >> ./restoreConfig.sh
