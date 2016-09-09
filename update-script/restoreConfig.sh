@@ -54,33 +54,36 @@ set -v
 #   * check for old version and delete them
 #   * check the md5sum of the files
 # 
-mkdir -p /config/.old_config
+mkdir -p /config/upgrade
+mkdir -p /config/downgrade
 
-rm -rf /config/.old_config/*
-cd /config/
+chmod 777 /config/upgrade
+chmod 777 /config/downgrade
 
-rm -rf /config/bmminer
-rm -rf /config/bmminer-api
-rm -rf /config/bmminer.md5
-rm -rf /config/bmminer-api.md5
+rm -rf /config/upgrade/bmminer
+rm -rf /config/upgrade/bmminer-api
+rm -rf /config/upgrade/bmminer.md5
+rm -rf /config/upgrade/bmminer-api.md5
 
-for f in restoreConfig.md5 bmminer.md5 bmminer-api.md5 restoreConfig.sh bmminer-api bmminer; do
+
+
+for f in bmminer.md5 bmminer-api.md5 bmminer-api bmminer; do
     if [ -f $f ] ; then
-	    cp $f /config/
+	    cp $f /config/upgrade/
     fi
 done
 
-md5ok1=$(md5sum -c /config/bmminer.md5);
-md5ok2=$(md5sum -c /config/bmminer-api.md5);
-md5ok3=$(md5sum -c /config/restoreConfig.md5);
+md5ok1=$(md5sum -c /config/upgrade/bmminer.md5);
+md5ok2=$(md5sum -c /config/upgrade/bmminer-api.md5);
 
-if [ "$md5ok1"="bmminer: OK" ] && [ "$md5ok2"="bmminer-api: OK" ] && [ "$md5ok3"="restoreConfig.md5: OK" ] ; then
-cp /usr/bin/bmminer /config/bmminer-backup
-cp /usr/bin/bmminer-api /config/bmminer-api-backup
+
+if [ "$md5ok1"="bmminer: OK" ] && [ "$md5ok2"="bmminer-api: OK" ] ; then
+cp /usr/bin/bmminer /config/downgrade/bmminer-backup
+cp /usr/bin/bmminer-api /config/downgrade/bmminer-api-backup
 rm -- /usr/bin/bmminer
 rm -- /usr/bin/bmminer-api
-cp /config/bmminer /usr/bin/bmminer
-cp /config/bmminer-api /usr/bin/bmminer-api
+cp /config/upgrade/bmminer /usr/bin/bmminer
+cp /config/upgrade/bmminer-api /usr/bin/bmminer-api
 /etc/init.d/bmminer.sh restart
 fi;
 
