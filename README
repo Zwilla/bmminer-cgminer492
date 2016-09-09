@@ -1,6 +1,8 @@
 https://bitcointalk.org/index.php?topic=1569129
 Bounty for Cracking Bitmain S9 BMminer
 
+Github-Pages: https://zwilla.github.io/bmminer-cgminer492
+
 
 At the folder "binaries", you will find this files and these are the MD5Sum's:
 
@@ -14,6 +16,8 @@ compile it and create them                       restoreConfig.sh
 -----------------------------------------------------------------
 
 The upgrade script you find at the folder "update-script"
+
+Github-Pages: https://zwilla.github.io/bmminer-cgminer492
 
 This is a multi-threaded multi-pool ASIC miner for Bitmain Antminer S9.
 
