@@ -83,14 +83,14 @@ md5sum -c /config/upgrade/bmminer.md5
 md5sum -c /config/upgrade/bmminer-api.md5
 
 # Backup original, but do not overwirte
-cp -p -n /usr/bin/bmminer /config/downgrade/bmminer-orig;
-cp -p -n /usr/bin/bmminer-api /config/downgrade/bmminer-api-orig;
-cp -p -n /www/pages/upgrade.html /config/downgrade/upgrade.html-orig;
+cp -p /usr/bin/bmminer /config/downgrade/bmminer-orig;
+cp -p /usr/bin/bmminer-api /config/downgrade/bmminer-api-orig;
+cp -p /www/pages/upgrade.html /config/downgrade/upgrade.html-orig;
 
 # with this you can access the miner hard from outside just call http://minerip/cgi-bin/StartMinerSoftware.cgi
 cp -p StartMinerSoftware.cgi /www/pages/cgi-bin/StartMinerSoftware.cgi;
-rm -- /usr/bin/bmminer
-rm -- /usr/bin/bmminer-api
+rm /usr/bin/bmminer
+rm /usr/bin/bmminer-api
 cp -p /config/upgrade/bmminer /usr/bin/bmminer
 cp -p /config/upgrade/bmminer-api /usr/bin/bmminer-api
 cp -p upgrade.html /www/pages/upgrade.html;
@@ -99,9 +99,9 @@ cd /usr/bin;
 
 echo $(date) > /config/upgrade/update.date
 sync;
-su root -- /etc/init.d/bmminer.sh stop;
+su root /etc/init.d/bmminer.sh stop;
 sleep 2
-su root -- /etc/init.d/bmminer.sh restart;
+su root /etc/init.d/bmminer.sh restart;
 
 
 

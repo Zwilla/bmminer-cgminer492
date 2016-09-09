@@ -111,6 +111,7 @@ for f in $bkup_files ; do
     fi
 done
 
+
 cp -p /config/downgrade/bmminer-orig $dir;
 cp -p /config/downgrade/bmminer-api-orig $dir;
 cp -p /config/downgrade/upgrade.html-orig $dir;
