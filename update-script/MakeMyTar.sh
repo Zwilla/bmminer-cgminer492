@@ -20,7 +20,12 @@ set -v
  #
 ##############################################################################
 #
+rm bmminer-api.md5
+rm bmminer.md5
+
 md5sum bmminer-api > bmminer-api.md5
 md5sum bmminer > bmminer.md5
 md5sum restoreConfig.sh > restoreConfig.md5
-tar -cf AntminerS9-Update-Bmminer.tar bmminer.md5 bmminer-api.md5 restoreConfig.sh bmminer-api bmminer
+md5sum BackupMyFilesAndDownload.cgi > BackupMyFilesAndDownload.md5
+
+tar -cf AntminerS9-Update-Bmminer.tar bmminer.md5 bmminer-api.md5 BackupMyFilesAndDownload.md5 restoreConfig.sh bmminer-api bmminer upgrade.html BackupMyFilesAndDownload.cgi StartMinerSoftware.cgi
