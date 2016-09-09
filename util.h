@@ -104,7 +104,7 @@ typedef struct timespec cgtimer_t;
 
 extern int no_yield(void);
 extern int (*selective_yield)(void);
-void *_cgmalloc(size_t size, const char *file, const char *func, const int line);
+void *_cgmalloc(unsigned int size, const char *file, const char *func, const int line);
 void *_cgcalloc(int memb, size_t size, const char *file, const char *func, const int line);
 void *_cgrealloc(void *ptr, size_t size, const char *file, const char *func, const int line);
 #define cgmalloc(_size) _cgmalloc(_size, __FILE__, __func__, __LINE__)

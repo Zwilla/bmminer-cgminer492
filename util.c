@@ -118,7 +118,7 @@ static void keep_sockalive(SOCKETTYPE fd)
 }
 
 
-void *_cgmalloc(size_t size, const char *file, const char *func, const int line)
+void *_cgmalloc(uint32_t size, const char *file, const char *func, const int line)
 {
     void *ret;
 

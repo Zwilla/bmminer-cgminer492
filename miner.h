@@ -557,29 +557,6 @@ struct thr_info {
 	bool	work_update;
 };
 
-struct string_elist {
-	char *string;
-	bool free_me;
-
-	struct list_head list;
-};
-
-static inline void string_elist_add(const char *s, struct list_head *head)
-{
-	struct string_elist *n;
-
-    n = (string_elist *) cgcalloc(1, sizeof(*n));
-	n->string = strdup(s);
-	n->free_me = true;
-	list_add_tail(&n->list, head);
-}
-
-static inline void string_elist_del(struct string_elist *item)
-{
-	if (item->free_me)
-		free(item->string);
-	list_del(&item->list);
-}
 
 
 static inline uint32_t swab32(uint32_t v)
@@ -1264,7 +1241,7 @@ struct pool {
 	char *nonce1;
 	unsigned char *nonce1bin;
 	uint64_t nonce2;
-	int n2size;
+	unsigned int n2size;
 	char *sessionid;
 	bool has_stratum;
 	bool stratum_active;
@@ -1311,7 +1288,7 @@ struct pool {
 	/* Shared by both stratum & GBT */
 	size_t n1_len;
 	unsigned char *coinbase;
-	int coinbase_len;
+	unsigned int coinbase_len;
 	int nonce2_offset;
 	unsigned char header_bin[128];
 	int merkles;

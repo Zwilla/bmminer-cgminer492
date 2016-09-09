@@ -41,3 +41,8 @@ If you want to use your old bmminer, just run this
 mv /usr/bin/bmminer-old /usr/bin/bmminer
 
 /etc/init.d/bmminer.sh restart
+
+
+debugging: (do not strip before)
+gdb --args /usr/bin/bmminer --api-listen --default-config /config/bmminer.conf --version-file /usr/bin/compile_time -T
+

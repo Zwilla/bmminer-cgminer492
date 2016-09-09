@@ -163,9 +163,9 @@
 
 //other FPGA macro define
 #define TOTAL_LEN						0x160
-#define FPGA_MEM_TOTAL_LEN				(32*1024*1024)	// (default: 16M bytes) we give 32
+#define FPGA_MEM_TOTAL_LEN				(16*1024*1024)	// (default: 16M bytes) we give 32
 #define HARDWARE_VERSION_VALUE			0xC501
-#define NONCE2_AND_JOBID_STORE_SPACE	(4*1024*1024)	// 2M bytes (default: 2) we give now 4
+#define NONCE2_AND_JOBID_STORE_SPACE	(2*1024*1024)	// 2M bytes (default: 2) we give now 4
 #define NONCE2_AND_JOBID_STORE_SPACE_ORDER	9			// (default:9 for 2M bytes space) Set to: 18 for 4M bytes space
 
 #define JOB_STORE_SPACE					(1 << 16)		// for 64K bytes space
@@ -194,7 +194,7 @@
 
 #define MIDSTATE_LEN					32              // MIDSTATE len = 32 Asicboost ? 2.5 Building work items
 #define DATA2_LEN						12              // 12 bytes ??
-#define MAX_RETURNED_NONCE_NUM			5              // Default 10, now testing 5
+#define MAX_RETURNED_NONCE_NUM			10              // Default 10, now testing 5
 #define PREV_HASH_LEN					32              // fixed 2.2 The Bitcoin block header (32 bytes)
 #define MERKLE_BIN_LEN					32              // fixed 2.2 The Bitcoin block header (32 bytes) Merkle root Head = 28 Version= 4 ??
 #define INIT_CONFIG_TYPE				0x51
@@ -258,7 +258,7 @@ struct init_config
     uint8_t		asic_num;
     uint8_t		fan_pwm_percent;
     uint8_t		temperature;
-    unsigned short frequency;
+    unsigned short int frequency;
     uint8_t		voltage[2];
     uint8_t		chain_check_time_integer;
     uint8_t		chain_check_time_fractions;
@@ -333,7 +333,7 @@ struct part_of_job
     uint8_t		prev_hash[32];			// buf[5] - buf[12]
     uint32_t	ntime;					// buf[13]
     uint32_t	nbit;					// buf[14]
-    uint16_t	coinbase_len;			// buf[15]
+    unsigned int coinbase_len;			// buf[15]
     uint16_t	nonce2_offset;
     uint16_t	nonce2_bytes_num;		// 4 or 8 bytes	// buf[16]
     uint16_t	merkles_num;
@@ -386,6 +386,7 @@ struct all_parameters
     uint64_t		chain_asic_nonce[BITMAIN_MAX_CHAIN_NUM][BITMAIN_DEFAULT_ASIC_NUM];
     char			chain_asic_status_string[BITMAIN_MAX_CHAIN_NUM][BITMAIN_DEFAULT_ASIC_NUM+8];
 
+
     unsigned long long int total_nonce_num;
 
     unsigned char	fan_exist[BITMAIN_MAX_FAN_NUM];
@@ -409,13 +410,13 @@ struct all_parameters
     uint8_t			fan_pwm;
     uint8_t         displayed_rate[16];
 
-    unsigned short int	frequency;
-    char frequency_t[10];
-    unsigned short int	freq[BITMAIN_MAX_CHAIN_NUM];
+    unsigned short int frequency;
+    char               frequency_t[10];
+    unsigned short int freq[BITMAIN_MAX_CHAIN_NUM];
 }__attribute__((packed, aligned(4)));
 
 //volatile struct nonce_buf
-volatile struct nonce_buf
+struct nonce_buf
 {
     unsigned int p_wr;
     unsigned int p_rd;
@@ -434,7 +435,7 @@ struct reg_content
 }__attribute__((packed, aligned(4)));
 
 //volatile struct reg_buf
-volatile struct reg_buf
+struct reg_buf
 {
     unsigned int p_wr;
     unsigned int p_rd;
@@ -583,8 +584,11 @@ static struct freq_pll freq_pll_1385[] = {
 extern bool opt_bitmain_fan_ctrl;
 extern int opt_bitmain_fan_pwm;
 extern int opt_bitmain_c5_freq;
+extern int opt_bitmain_c5_freq1;
+extern int opt_bitmain_c5_freq2;
+extern int opt_bitmain_c5_freq3;
 extern int opt_bitmain_c5_voltage;
-extern bool opt_bitmain_new_cmd_type_vil;
+//extern bool opt_bitmain_new_cmd_type_vil;
 extern int ADD_FREQ;
 extern int ADD_FREQ1;
 

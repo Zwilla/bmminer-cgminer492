@@ -479,7 +479,7 @@ static bool should_run(void)
         }
         if (time_before((struct tm *) &schedstart.tm, (struct tm *) &schedstop.tm))
         {
-            if (time_before((struct tm *) tm, (struct tm *) &schedstop.tm) && !time_before((struct tm *) tm, (struct tm *) &schedstart.tm))
+            if (time_before(tm, (struct tm *) &schedstop.tm) && !time_before(tm, (struct tm *) &schedstart.tm))
             {
                 return true;
             }
@@ -488,9 +488,9 @@ static bool should_run(void)
         }
 
         /* Times are reversed */
-        if (time_before((struct tm *) tm, (struct tm *) &schedstart.tm))
+        if (time_before(tm, (struct tm *) &schedstart.tm))
         {
-            if (time_before((struct tm *) tm, (struct tm *) &schedstop.tm))
+            if (time_before(tm, (struct tm *) &schedstop.tm))
             {
                 return true;
             }
@@ -915,14 +915,6 @@ static char __maybe_unused *set_int_0_to_4(const char *arg, int *i)
     return set_int_range(arg, i, 0, 4);
 }
 
-#ifdef USE_FPGA_SERIAL
-static char *opt_add_serial;
-static char *add_serial(char *arg)
-{
-    string_elist_add(arg, &scan_devices);
-    return NULL;
-}
-#endif
 
 void get_intrange(char *arg, int *val1, int *val2)
 {
@@ -1558,20 +1550,29 @@ static struct opt_table opt_config_table[] =
                  set_int_0_to_9999,opt_show_intval, &opt_bitmain_c5_freq,
                  "Set frequency"),
 
+    OPT_WITH_ARG("--bitmain-freq1",
+                 set_int_0_to_9999,opt_show_intval, &opt_bitmain_c5_freq1,
+                 "Set frequency"),
+
+    OPT_WITH_ARG("--bitmain-freq2",
+                 set_int_0_to_9999,opt_show_intval, &opt_bitmain_c5_freq2,
+                 "Set frequency"),
+
+     OPT_WITH_ARG("--bitmain-freq3",
+                 set_int_0_to_9999,opt_show_intval, &opt_bitmain_c5_freq3,
+                 "Set frequency"),
+
     OPT_WITH_ARG("--bitmain-voltage",
                  set_int_0_to_9999,opt_show_intval, &opt_bitmain_c5_voltage,
                  "Set voltage"),
 
-    OPT_WITHOUT_ARG("--bitmain-use-vil",
-                    opt_set_bool, &opt_bitmain_new_cmd_type_vil,
-                    "Set bitmain miner use vil mode"),
 
 #endif
 
 #ifdef USE_BITMAIN
         OPT_WITH_ARG("--bitmain-dev",
-    set_bitmain_dev, NULL, NULL,
-			"Set bitmain device (default: /dev/bitmain-asic)"),
+                    set_bitmain_dev, NULL, NULL,
+                    "Set bitmain device (default: /dev/bitmain-asic)"),
 
 
     OPT_WITH_ARG("--bitmain-fan-max",
@@ -1588,32 +1589,32 @@ static struct opt_table opt_config_table[] =
                     "Set bitmain device detect hardware error"),
 
     OPT_WITHOUT_ARG("--bitmain-checkall",
-    opt_set_bool, &opt_bitmain_checkall,
-    "Set bitmain check all"),
+                    opt_set_bool, &opt_bitmain_checkall,
+                    "Set bitmain check all"),
 
     OPT_WITHOUT_ARG("--bitmain-checkn2diff",
-    opt_set_bool, &opt_bitmain_checkn2diff,
-    "Set bitmain check not 2 pow diff"),
+                    opt_set_bool, &opt_bitmain_checkn2diff,
+                    "Set bitmain check not 2 pow diff"),
 
     OPT_WITHOUT_ARG("--bitmain-nobeeper",
-    opt_set_bool, &opt_bitmain_nobeeper,
-    "Set bitmain beeper no ringing"),
+                    opt_set_bool, &opt_bitmain_nobeeper,
+                    "Set bitmain beeper no ringing"),
 
     OPT_WITHOUT_ARG("--bitmain-notempoverctrl",
-    opt_set_bool, &opt_bitmain_notempoverctrl,
-    "Set bitmain not stop runing when temprerature is over 80 degree Celsius"),
+                    opt_set_bool, &opt_bitmain_notempoverctrl,
+                    "Set bitmain not stop runing when temprerature is over 80 degree Celsius"),
 
     OPT_WITHOUT_ARG("--bitmain-auto",
-    opt_set_bool, &opt_bitmain_auto,
-    "Adjust bitmain overclock frequency dynamically for best hashrate"),
+                    opt_set_bool, &opt_bitmain_auto,
+                    "Adjust bitmain overclock frequency dynamically for best hashrate"),
 
     OPT_WITHOUT_ARG("--bitmain-homemode",
-    opt_set_bool, &opt_bitmain_homemode,
-    "Set bitmain miner to home mode"),
+                    opt_set_bool, &opt_bitmain_homemode,
+                    "Set bitmain miner to home mode"),
 
-	OPT_WITHOUT_ARG("--bitmain-use-vil",
-			opt_set_bool, &opt_bitmain_new_cmd_type_vil,
-			"Set bitmain miner use vil mode"),
+    OPT_WITHOUT_ARG("--bitmain-use-vil",
+                    opt_set_bool, &opt_bitmain_new_cmd_type_vil,
+                    "Set bitmain miner use vil mode"),
 
 	OPT_WITHOUT_ARG("--bitmain-fan-ctrl",
              opt_set_bool, &opt_bitmain_fan_ctrl,
@@ -3021,7 +3022,9 @@ static void get_statline(char *buf, size_t bufsiz, struct cgpu_info *cgpu)
     snprintf(buf, bufsiz, "%s%d ", cgpu->drv->name, cgpu->device_id);
     cgpu->drv->get_statline_before(buf, bufsiz, cgpu);
 
-    tailsprintf(buf, bufsiz, "(%ds):%s (avg):%sh/s | A:%.0f R:%.0f HW:%d WU:%.1f/m",
+    tailsprintf(buf,
+                bufsiz,
+                "(%ds):%s (avg):%sh/s | A:%.0f R:%.0f HW:%d WU:%.1f/m",
                 opt_log_interval,
                 displayed_rolling,
                 displayed_hashes,
@@ -8881,7 +8884,9 @@ static void hash_sole_work(struct thr_info *mythr)
     /* Try to cycle approximately 5 times before each log update */
     const long cycle = opt_log_interval / 5 ? : 1;
     const bool primary  = (!mythr->device_thread) || mythr->primary_thread;
-    struct timeval diff, sdiff, wdiff = {0, 0};
+    struct timeval sdiff;
+    struct timeval diff;
+    struct timeval wdiff = {0, 0};
     uint32_t max_nonce  = drv->can_limit_work(mythr);
     int64_t hashes_done = 0;
 
@@ -8904,10 +8909,10 @@ static void hash_sole_work(struct thr_info *mythr)
 
         if (!drv->prepare_work(mythr, work))
         {
-            applog(LOG_ERR, "work prepare failed, exiting "
-                   "mining thread %d", thr_id);
+            applog(LOG_ERR, "work prepare failed, exiting mining thread %d", thr_id);
             break;
         }
+
         work->device_diff = MIN(drv->max_diff, work->work_difficulty);
         work->device_diff = MAX(drv->min_diff, work->device_diff);
 
@@ -9455,8 +9460,7 @@ void hash_driver_work(struct thr_info *mythr)
         timersub(&tv_end, &tv_start, &diff);
 
         /* Update the hashmeter at most 5 times per second */
-        if ((hashes_done && (diff.tv_sec > 0 || diff.tv_usec > 200000)) ||
-            diff.tv_sec >= opt_log_interval)
+        if ((hashes_done && (diff.tv_sec > 0 || diff.tv_usec > 200000)) || diff.tv_sec >= opt_log_interval)
         {
             hashmeter(thr_id, (uint64_t)hashes_done);
             hashes_done = 0;
@@ -9864,7 +9868,7 @@ static void reap_curl(struct pool *pool)
     {
         if (pool->curls < 2)
         {
-            break;
+            return;
         }
 
         if (now.tv_sec - ent->tv.tv_sec > 300)
@@ -10326,8 +10330,8 @@ void print_summary(void)
     {
         struct cgpu_info *cgpu = get_devices(i);
 
-        cgpu->drv->get_statline_before = &blank_get_statline_before;
-        cgpu->drv->get_statline = &noop_get_statline;
+        cgpu->drv->get_statline_before = (void (*)(char *, size_t, struct cgpu_info *)) &blank_get_statline_before;
+        cgpu->drv->get_statline = (void (*)(char *, size_t, struct cgpu_info *)) &noop_get_statline;
         log_print_status(cgpu);
     }
 
@@ -10803,12 +10807,12 @@ void fill_device_drv(struct device_drv *drv)
 
     if (!drv->get_statline_before)
     {
-        drv->get_statline_before = &blank_get_statline_before;
+        drv->get_statline_before = (void (*)(char *, size_t, struct cgpu_info *)) &blank_get_statline_before;
     }
 
     if (!drv->get_statline)
     {
-        drv->get_statline = &noop_get_statline;
+        drv->get_statline = (void (*)(char *, size_t, struct cgpu_info *)) &noop_get_statline;
     }
 
     if (!drv->get_stats)
