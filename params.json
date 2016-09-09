@@ -1,0 +1,6 @@
+{
+  "name": "Bmminer-cgminer492",
+  "tagline": "cgminer 4.9.2 for Antminer S9",
+  "body": "### Welcome to Zwilla's GitHub Pages.\r\nNow you are able to use the worlds first cgminer 4.9.2 for Bitmaintech's  Antminer Model S9 (all batches)\r\n\r\n### Replace Bmminer with cgminer 4.9.2\r\nBy a community project we where working for many hours/days to serve you now the world's first cgminer 4.9.2 for\r\nAntminer S9 model. \r\n\r\n### Creating pages manually\r\nIf you prefer to not use the automatic generator, push a branch named `gh-pages` to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.\r\n\r\n### Authors and Contributors\r\nMiguel Padilla from Zwilla Research (Germany)\r\n\r\n### Support or Contact\r\nHaving trouble with it? Check out the community pages at [documentation](https://bitcointalk.org/index.php?action=post;topic=1569129) or [contact support](https://www.zwilla.de/) and we’ll help you sort it out.",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}
