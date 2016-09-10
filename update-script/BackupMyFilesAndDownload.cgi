@@ -187,7 +187,6 @@ echo "</head>" >> ./restoreConfig.sh
 echo "EOH" >> ./restoreConfig.sh
 
 
-
 tar cf /www/pages/$file *
 
 ok=1;
