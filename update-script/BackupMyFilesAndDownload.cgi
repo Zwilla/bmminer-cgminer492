@@ -1,5 +1,25 @@
-#!/bin/sh -e
-
+#!/bin/sh
+set -e
+# local ##### upload this file on "restore config" Menu only !!!
+##############################################################################
+#
+# @category "Cgminer 4.9.2 for Bitmain Antminer S9"
+# @package "Mintorro-S9 Firmware"
+# @author Miguel Padilla <miguel.padilla@zwilla.de>
+# @copyright (c) 2016 - Miguel Padilla
+# @link "https://www.mintorro.com"
+#
+# According to our dual licensing model, this program can be used either
+# under the terms of the GNU Affero General Public License, version 3,
+# or under a proprietary license.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+##############################################################################
+#
 file=zwilla_backup_all.tar
 dir=/config/backup
 bkup_files="advanced.conf \
@@ -118,14 +138,17 @@ cp -p /config/downgrade/upgrade.html-orig $dir;
 
 
 > ./restoreConfig.sh
-echo 'mkdir -p /config/.old_config'                      >> ./restoreConfig.sh
-echo 'rm -rf /config/.old_config/*'                      >> ./restoreConfig.sh
+echo '#!/bin/sh -e'                                      >> ./restoreConfig.sh
+echo 'mkdir -p /config/old_config'                       >> ./restoreConfig.sh
+echo 'rm -rf /config/old_config/*'                       >> ./restoreConfig.sh
 echo 'cd /config/'                                       >> ./restoreConfig.sh
 echo "for f in $bkup_files ; do"                         >> ./restoreConfig.sh
 echo '    if [ -f $f ] ; then'                           >> ./restoreConfig.sh
-echo '	    cp -p $f /config/.old_config/'               >> ./restoreConfig.sh
+echo '	    cp -p $f /config/old_config/'                >> ./restoreConfig.sh
 echo '    fi'                                            >> ./restoreConfig.sh
 echo 'done'                                              >> ./restoreConfig.sh
+echo 'cd /config/old_config'                             >> ./restoreConfig.sh
+echo 'chmod 777 -R /config/old_config/'                  >> ./restoreConfig.sh
 echo 'mv /usr/bin/bmminer /usr/bin/bmminer-old'          >> ./restoreConfig.sh
 echo 'mv /usr/bin/bmminer-api /usr/bin/bmminer-api-old'  >> ./restoreConfig.sh
 echo 'cp -p upgrade.html-orig /www/pages/upgrade.html'   >> ./restoreConfig.sh
@@ -135,6 +158,9 @@ echo 'cp -p * /config/'                                  >> ./restoreConfig.sh
 echo 'chmod 755 /usr/bin/bmminer'                        >> ./restoreConfig.sh
 echo 'chmod 755 /usr/bin/bmminer-api'                    >> ./restoreConfig.sh
 echo 'sync'                                              >> ./restoreConfig.sh
+echo 'su root /etc/init.d/bmminer.sh restart;'           >> ./restoreConfig.sh
+echo 'exit'                                              >> ./restoreConfig.sh
+
 
 tar cf /www/pages/$file *
 
